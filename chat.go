@@ -72,36 +72,31 @@ func (chat *Chat) out(screen screens.Interface, new bool) {
 	}
 }
 
-func (chat *Chat) routine() {
+func (chat *Chat) routine(channel chan screens.Event) {
 	for {
-		if chat.taskChan == nil {
-			if channel := chat.Screen.Channel(); channel == nil {
-				update := <-chat.updateChan
-				if len(chat.taskSlice) == 0 {
-					chat.taskChan = UpdateTask{update}.execute(chat)
-				} else {
-					chat.taskSlice = append(chat.taskSlice, UpdateTask{update})
-				}
+		//if channel := chat.Screen.Channel(); channel == nil {
+		//	update := <-chat.updateChan
+		//	if len(chat.taskSlice) == 0 {
+		//		chat.taskChan = UpdateTask{update}.execute(chat)
+		//	} else {
+		//		chat.taskSlice = append(chat.taskSlice, UpdateTask{update})
+		//	}
+		//} else {
+		select {
+		case update := <-chat.updateChan:
+			if len(chat.taskSlice) == 0 {
+				chat.taskChan = UpdateTask{update}.execute(chat)
 			} else {
-				select {
-				case update := <-chat.updateChan:
-					if len(chat.taskSlice) == 0 {
-						chat.taskChan = UpdateTask{update}.execute(chat)
-					} else {
-						chat.taskSlice = append(chat.taskSlice, UpdateTask{update})
-					}
-				case event := <-channel:
-					chat.out(event, false)
-				}
-			}
-		} else {
-			select {
-			case <-chat.taskChan:
-				panic("Chat.routine: not implement")
-			case update := <-chat.updateChan:
 				chat.taskSlice = append(chat.taskSlice, UpdateTask{update})
 			}
+		case event := <-channel:
+			if event != nil {
+				event.Init()
+				chat.Screen.Close()
+			}
+			chat.out(event, false)
 		}
+		//		}
 	}
 }
 

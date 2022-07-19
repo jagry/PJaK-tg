@@ -17,8 +17,8 @@ const (
 	baseUpdateText  = "Не надо бездумно слать всякую шнягу"
 )
 
-func NewBase(user int8) Base {
-	return Base{user: user}
+func NewBase(channel chan Event, user int8) Base {
+	return Base{channel: channel, user: user}
 }
 
 func (Base) Channel() chan Event { return nil }
@@ -37,10 +37,12 @@ func (base Base) Handle(update telegram.Update) (Interface, bool, telegram.Chatt
 		dmc := telegram.NewDeleteMessage(update.FromChat().ID, update.Message.MessageID)
 		if update.Message.IsCommand() {
 			switch update.Message.Text {
-			case "/start":
-				return NewLoading(base, base, NewBetsMainFactory(), betsCaption, betsLoadTournamentsText), true, dmc
-			case "/tournaments":
-				return NewLoading(base, base, NewBetsMainFactory(), betsCaption, betsLoadTournamentsText), true, dmc
+			case "/bets":
+				return NewLoading(base, betsCaption, base, NewMainFactory(), betsCaption, mainLoadText), true, dmc
+			case "/results":
+				return NewLoading(base, resultsCaption, base, NewMainFactory(), resultsCaption, mainLoadText), true, dmc
+			case "/statistic":
+				return NewLoading(base, betsCaption, base, NewMainFactory(), betsCaption, mainLoadText), true, dmc
 			}
 			return NewError(base, base, baseUserCaption, baseCommandText), true, dmc
 		}
@@ -60,8 +62,8 @@ func (base Base) User() int8 {
 }
 
 type Base struct {
-	//chat int64
-	user int8
+	channel chan Event
+	user    int8
 }
 
 var baseCloseButton = telegram.NewInlineKeyboardButtonData(baseCloseText, baseCloseId)

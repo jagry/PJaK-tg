@@ -6,7 +6,8 @@ import (
 )
 
 const (
-	get = `SELECT "m"."id", "b"."goal1", "1"."name", "m"."goal1", "b"."goal2", "2"."name", "m"."goal2", "m"."time" FROM "match" "m"
+	get = `SELECT "m"."id", "b"."goal1", "1"."full", "m"."goal1", "1"."short", "b"."goal2",
+		"2"."full", "m"."goal2", "2"."short", "m"."time" FROM "match" "m"
     	JOIN "team" "1" ON "1"."id" = "m"."team1"
 		JOIN "team" "2" ON "2"."id" = "m"."team2"
 		LEFT JOIN "bet" "b" ON "b"."match" = "m"."id" AND "b"."user" = $1
@@ -18,8 +19,8 @@ const (
 )
 
 func GetMatch(matchId MatchId, user int8) (match Match, fail error) {
-	vars := []interface{}{&match.Id, &match.Team1.bets, &match.Team1.name, &match.Team1.result}
-	vars = append(vars, &match.Team2.bets, &match.Team2.name, &match.Team2.result, &match.time)
+	vars := []interface{}{&match.Id, &match.Team1.bets, &match.Team1.full, &match.Team1.result, &match.Team1.short}
+	vars = append(vars, &match.Team2.bets, &match.Team2.full, &match.Team2.result, &match.Team2.short, &match.time)
 	fail = db.QueryRow(getMatch, user, matchId).Scan(vars...)
 	return
 }
@@ -36,8 +37,8 @@ func GetMatches(round *Round, user int8) ([]*Match, error) {
 	}
 	for rows.Next() {
 		match := &Match{}
-		vars := []interface{}{&match.Id, &match.Team1.bets, &match.Team1.name, &match.Team1.result}
-		vars = append(vars, &match.Team2.bets, &match.Team2.name, &match.Team2.result, &match.time)
+		vars := []interface{}{&match.Id, &match.Team1.bets, &match.Team1.full, &match.Team1.result, &match.Team1.short}
+		vars = append(vars, &match.Team2.bets, &match.Team2.full, &match.Team2.result, &match.Team2.short, &match.time)
 		fail = rows.Scan(vars...)
 		if fail != nil {
 			return nil, fail
@@ -51,16 +52,24 @@ func (match Match) Time() time.Time {
 	return match.time
 }
 
-func (mt MatchTeam) Name() *string {
-	return mt.name
-}
-
 func (mt MatchTeam) Bet() *byte {
 	return mt.bets
 }
 
+func (mt MatchTeam) Full() *string {
+	return mt.full
+}
+
+func (mt MatchTeam) Result() *byte {
+	return mt.result
+}
+
 func (mt *MatchTeam) SetBet(arg byte) {
 	mt.bets = &arg
+}
+
+func (mt MatchTeam) Short() *string {
+	return mt.short
 }
 
 type (
@@ -74,8 +83,7 @@ type (
 	MatchId uint16
 
 	MatchTeam struct {
-		bets   *byte
-		name   *string
-		result *byte
+		bets, result *byte
+		short, full  *string
 	}
 )

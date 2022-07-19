@@ -80,9 +80,12 @@ CREATE TABLE "seasonRound"
 
 CREATE TABLE "team"
 (
+    "full" varchar(99) NOT NULL,
     "id"   smallserial PRIMARY KEY,
-    "name" varchar(99) NOT NULL,
-    "ts"   smallint    NOT NULL REFERENCES "tournamentSeason"
+    "short" varchar(99) NOT NULL,
+    "ts"   smallint    NOT NULL REFERENCES "tournamentSeason",
+    CONSTRAINT "teamUShort" UNIQUE ("short", "ts"),
+    CONSTRAINT "teamUFull" UNIQUE ("full", "ts")
 );
 -- 4
 CREATE TABLE "match"

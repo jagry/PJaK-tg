@@ -10,37 +10,31 @@ import (
 const (
 	loadingCharactersCount = 3
 	loadingButton          = "🛑 Отмена"
-	loadingText            = ". Подождите, пожалуйста"
+	loadingTextSuffix      = ". Подождите, пожалуйста"
 )
 
-func NewLoading(base Base, caller Interface, factory ActionFactory, caption, text string) *Loading {
-	return &Loading{
-		Base:      base,
-		caller:    caller,
-		channel:   make(LoadingChannel),
-		eventChan: make(chan Event),
-		factory:   factory,
-		index:     -1,
-		runes:     []rune(loadingCharacters[rand.Intn(loadingCharactersCount)]),
-		view:      NewView(caption, text)}
+func NewLoading(base Base, section string, caller Interface, factory ActionFactory, caption, text string) *Loading {
+	runes := []rune(loadingCharacters[rand.Intn(loadingCharactersCount)])
+	super, view := NewSection(base, section), NewView(caption, text)
+	return &Loading{Section: super, caller: caller, factory: factory, index: -1, runes: runes, view: view}
 }
 
 func (loading Loading) Channel() chan Event {
-	return loading.eventChan
+	return loading.channel
 }
 
 func (loading Loading) Close() {
-	go loading.close()
 }
 
 func (loading Loading) close() {
-	log.Println("screens.Loading.Close: start")
-	loading.channel <- nil
-	log.Println("screens.Loading.Close: finish")
+	//loading.channel <- nil
 }
-func (loading *Loading) execute() {
+
+func (loading *Loading) execute(event chan Event) {
 	time.Sleep(time.Second)
-	loading.channel <- loading.factory.Execute(loading.Base)
+	log.Println("screens.Loading.execute: sending event")
+	event <- loading.factory.Execute(loading)
+	log.Println("screens.Loading.execute: sent event")
 }
 
 func (loading Loading) Handle(update telegram.Update) (Interface, bool, telegram.Chattable) {
@@ -51,10 +45,11 @@ func (loading Loading) Handle(update telegram.Update) (Interface, bool, telegram
 }
 
 func (loading *Loading) Init() chan bool {
-	//wg := sync.WaitGroup{}
-	go loading.execute()
-	go loading.timer()
-	//wg.Wait()
+	log.Println("screens.Loading.Init: creating event")
+	event := make(chan Event)
+	log.Println("screens.Loading.Init: created event")
+	go loading.execute(event)
+	go loading.timer(event)
 	return nil
 }
 
@@ -68,54 +63,55 @@ func (loading Loading) Out() *InterfaceOut {
 		Text:     view.Text()}
 }
 
-func (loading *Loading) timer() {
-	log.Println("screens.Loading.timer 0: start")
+func (loading *Loading) timer(event chan Event) {
 	for {
+		log.Println("screens.Loading.timer: select event and timer")
 		select {
-		case finish := <-loading.channel:
-			log.Println("screens.Loading.timer: channel0 =", finish)
+		case finish := <-event:
+			log.Println("screens.Loading.timer: received event")
 			if finish != nil {
-				log.Println("screens.Loading.timer: channel0: start")
-				loading.eventChan <- finish
-				log.Println("screens.Loading.timer: channel0: notify")
-				close(loading.eventChan)
-				log.Println("screens.Loading.timer: channel0: close")
-				loading.eventChan = nil
-				log.Println("screens.Loading.timer: channel0: finish")
+				log.Println("screens.Loading.timer: sending to chat 0")
+				loading.channel <- finish
+				log.Println("screens.Loading.timer: sent to chat 0")
+				log.Println("screens.Loading.timer: closing event 0")
+				close(event)
+				log.Println("screens.Loading.timer: closed event 0")
 				return
 			}
-			for {
-				finish = <-loading.channel
-				log.Println("screens.Loading.timer: channel1")
-				if finish != nil {
-					log.Println("screens.Loading.timer: channel1: finish")
-					close(loading.channel)
-					return
-				}
+			//for {
+			log.Println("screens.Loading.timer: wait event")
+			finish = <-event
+			log.Println("screens.Loading.timer: received event")
+			if finish != nil {
+				log.Println("screens.Loading.timer: closing event 1")
+				close(event)
+				log.Println("screens.Loading.timer: closed event 1")
+				return
 			}
+			//}
 		case <-time.After(time.Second):
-			log.Println("screens.Loading.timer: timer")
+			log.Println("screens.Loading.timer: received timer")
 			loading.index++
 			if loading.index == len(loading.runes) {
 				loading.index = 0
 			}
-			log.Println("screens.Loading.timer: timer: pre")
-			loading.eventChan <- nil
-			log.Println("screens.Loading.timer: timer: post")
+			log.Println("screens.Loading.timer: sending to chat 1", loading.channel)
+			loading.channel <- nil
+			log.Println("screens.Loading.timer: sent to chat 1")
 		}
 	}
 }
 
 type (
 	Loading struct {
-		Base
-		caller    Interface
-		channel   LoadingChannel
-		eventChan chan Event
-		factory   ActionFactory
-		index     int
-		runes     []rune
-		view      View
+		Section
+		caller Interface
+		//channel   LoadingChannel
+		//eventChan chan Event
+		factory ActionFactory
+		index   int
+		runes   []rune
+		view    View
 	}
 
 	LoadingChannel chan Interface
@@ -125,7 +121,9 @@ type (
 		shuffle bool
 	}
 
-	ActionFactory interface{ Execute(base Base) Interface }
+	ActionFactory interface {
+		Execute(action *Loading) Interface
+	}
 )
 
 var (

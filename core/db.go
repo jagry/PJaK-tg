@@ -2,7 +2,6 @@ package core
 
 import (
 	"database/sql"
-	"log"
 	"sync"
 )
 
@@ -22,11 +21,8 @@ func newDbQuery(text string, args ...interface{}) *dbQuery {
 	query := dbQuery{}
 	query.wg.Add(1)
 	go func() {
-		log.Println("core.newDbQuery start routine")
 		query.rows, query.fail = db.Query(text, args...)
-		log.Println("core.newDbQuery select executed")
 		query.wg.Done()
-		log.Println("core.newDbQuery finish routine")
 	}()
 	return &query
 }

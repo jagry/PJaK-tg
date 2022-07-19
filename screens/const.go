@@ -1,11 +1,12 @@
 package screens
 
 const (
-	backTextConst   = "⭕ Назад"
+	idPrefixConst = "bets."
+
 	cancelTextConst = "🛑️ Отмена"
 	//closeTextConst  = "❌ Закрыть"
 	saveTextConst    = "💾 Сохранить"
-	dividerTextConst = ": "
+	dividerTextConst = " > "
 
 	backIdConst   = "back"
 	cancelIdConst = "cancel"

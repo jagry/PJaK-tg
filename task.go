@@ -3,9 +3,9 @@ package main
 import tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
 
 func (task UpdateTask) execute(chat *Chat) (result TaskChan) {
-	screen, new, chattable := chat.Screen.Handle(task.update)
-	if chattable != nil {
-		_, fail := BotAPI.Request(chattable)
+	screen, new, chatTable := chat.Screen.Handle(task.update)
+	if chatTable != nil {
+		_, fail := BotAPI.Request(chatTable)
 		if fail != nil {
 			panic("UpdateTask.execute-1: " + fail.Error())
 		}

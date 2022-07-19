@@ -6,7 +6,8 @@ func NewView(caption, text string) View {
 
 func (view View) Text() string {
 	if len(view.caption) > 0 {
-		return "<b><i>" + view.caption + "</i></b>\n═══════════════════\n" + view.text
+		//return "<b><i>" + view.caption + "</i></b>\n═══════════════════\n" + view.text
+		return "<b>" + view.caption + "</b>\n═════════════════\n" + view.text
 	}
 	return view.text
 }

@@ -29,7 +29,7 @@ func main() {
 	if fail != nil {
 		log.Panic(fail.Error())
 	}
-	BotAPI, fail = tgbotapi.NewBotAPI("5538271712:AAH-1G6d5LEQXsDnGZY7qTwS9hNVu_0XPoQ")
+	BotAPI, fail = tgbotapi.NewBotAPI(settings.Telegram)
 	if fail != nil {
 		log.Panic(fail)
 	}
@@ -40,10 +40,7 @@ func main() {
 	for {
 		select {
 		case message := <-channel:
-			log.Println("main.Update")
 			messageChat := message.FromChat()
-
-			log.Println("main.Update", messageChat)
 			if messageChat != nil {
 				chat, ok := ChatMap[message.FromChat().ID]
 				if ok {
@@ -62,13 +59,14 @@ func main() {
 					if "Whiteseaer" == userName {
 						userId = 1
 					}
+					chatChannel := make(chan screens.Event)
 					chat = &Chat{
 						id:         message.FromChat().ID,
-						Screen:     screens.NewBase(userId),
+						Screen:     screens.NewBase(chatChannel, userId),
 						Time:       time.Now(),
 						updateChan: make(UpdateChan)}
 					ChatMap[message.FromChat().ID] = chat
-					go chat.routine()
+					go chat.routine(chatChannel)
 				}
 				chat.Time = time.Now()
 				chat.updateChan <- message
@@ -78,8 +76,6 @@ func main() {
 					FirstChat = chat
 				}
 				LastChat, chat.Next, chat.Previous = chat, nil, LastChat
-				//ChatMutex.Unlock()
-				log.Println("main.Update")
 			}
 		}
 	}
