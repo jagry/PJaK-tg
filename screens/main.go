@@ -13,21 +13,20 @@ const (
 	mainErrorText = "Ошибка загрузки футбольных турниров"
 )
 
-func LoadMain(base Base, section string) *Loading {
-	return NewLoading(base, section, base, NewMainFactory(), betsCaption, mainLoadText)
+func LoadMain(base Base, section Section) *Loading {
+	return NewLoading(base, base, NewMainFactory(section), section.name, mainLoadText)
 }
 
-func NewMain(base Base, section string, tournaments []*core.Tournament) Main {
+func NewMain(base Base, section Section, tournaments []*core.Tournament) Main {
 	tournamentMap := MapTournament{}
 	for _, tournament := range tournaments {
 		tournamentMap[tournament.Id] = tournament
 	}
-	super := NewSection(base, section)
-	return Main{Section: super, tournamentMap: tournamentMap, tournamentSlice: tournaments}
+	return Main{Base: base, section: section, tournamentMap: tournamentMap, tournamentSlice: tournaments}
 }
 
-func NewMainFactory() MainFactory {
-	return MainFactory{}
+func NewMainFactory(section Section) MainFactory {
+	return MainFactory{section: section}
 }
 
 func (main Main) Handle(update tgbotapi.Update) (Interface, bool, tgbotapi.Chattable) {
@@ -40,9 +39,9 @@ func (main Main) Handle(update tgbotapi.Update) (Interface, bool, tgbotapi.Chatt
 		if !ok {
 			panic("screens.BetsMain.Handle-1")
 		}
-		text := views.Tournament(*tournament).Caption(main.Section.name)
+		text := views.Tournament(*tournament).Caption(main.section.name)
 		callback := tgbotapi.NewCallback(update.CallbackQuery.ID, text)
-		return LoadTournament(main.Base, main.Section.name, main, tournament), false, callback
+		return LoadTournament(main.Base, main.section, main, tournament), false, callback
 	}
 	return main.Base.Handle(update)
 }
@@ -58,22 +57,32 @@ func (main Main) Out() *InterfaceOut {
 		keyboard = append(keyboard, []tgbotapi.InlineKeyboardButton{button})
 	}
 	keyboard = append(keyboard, []tgbotapi.InlineKeyboardButton{baseCloseButton})
-	return &InterfaceOut{Keyboard: keyboard, Text: NewView(main.Section.name, betsTournamentsText).Text()}
+	return &InterfaceOut{Keyboard: keyboard, Text: NewView(main.section.name, betsTournamentsText).Text()}
 }
 
 func (mf MainFactory) Execute(action *Loading) Interface {
 	if tournaments, fail := core.GetTournaments(); fail == nil {
-		return NewMain(action.Base, action.Section.name, tournaments)
+		return NewMain(action.Base, mf.section, tournaments)
 	}
-	return NewError(action.Base, action.Base, action.Section.name, mainErrorText)
+	return NewError(action.Base, action.Base, mf.section.name, mainErrorText)
 }
 
 type (
 	Main struct {
-		Section
+		Base
+		// !!! section         Section
+		manager         MainManager
 		tournamentMap   MapTournament
 		tournamentSlice []*core.Tournament
 	}
 
-	MainFactory struct{}
+	MainFactory struct {
+		manager MainManager
+		//section Section
+	}
+
+	MainManager interface {
+		Section() string
+		Tournament(Main) *Loading
+	}
 )

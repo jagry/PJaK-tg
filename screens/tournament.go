@@ -22,19 +22,19 @@ func initTournament(matchMap *MapRound, matchSlice []*core.Round) {
 	}
 }
 
-func LoadTournament(base Base, section string, caller Interface, core *core.Tournament) *Loading {
-	caption := views.Tournament(*core).Caption(section)
-	return NewLoading(base, section, caller, NewTournamentFactory(caller, core), caption, loadTournamentText)
+func LoadTournament(base Base, section Section, caller Interface, core *core.Tournament) *Loading {
+	caption := views.Tournament(*core).Caption(section.name)
+	return NewLoading(base, caller, NewTournamentFactory(caller, section, core), caption, loadTournamentText)
 }
 
-func NewTournament(section Section, caller, loader Interface, core *core.Tournament, rounds []*core.Round) Tournament {
+func NewTournament(b Base, c, l Interface, s Section, t *core.Tournament, r []*core.Round) Tournament {
 	roundMap := MapRound{}
-	initTournament(&roundMap, rounds)
-	return Tournament{Back: NewBack(section, caller, loader), core: core, roundMap: roundMap, roundSlice: rounds}
+	initTournament(&roundMap, r)
+	return Tournament{Back: NewBack(b, c, l), core: t, roundMap: roundMap, roundSlice: r, section: s}
 }
 
-func NewTournamentFactory(caller Interface, core *core.Tournament) TournamentFactory {
-	return TournamentFactory{caller: caller, core: core}
+func NewTournamentFactory(caller Interface, section Section, core *core.Tournament) TournamentFactory {
+	return TournamentFactory{caller: caller, core: core, section: section}
 }
 
 func (tournament Tournament) Handle(update tgbotapi.Update) (Interface, bool, tgbotapi.Chattable) {
@@ -45,10 +45,9 @@ func (tournament Tournament) Handle(update tgbotapi.Update) (Interface, bool, tg
 				panic("screens.BetsTournament.Handle:" + fail.Error())
 			}
 			if round, ok := tournament.roundMap[core.RoundId(id)]; ok {
-				factory := NewRoundFactory(tournament.loader, tournament.core, round)
-				text := views.Round(*round).Caption(tournament.Section.name, views.Tournament(*tournament.core))
-				loading := NewLoading(
-					tournament.Base, tournament.Section.name, tournament, factory, text, betsLoadMatchesText)
+				factory := NewRoundFactory(tournament.loader, tournament.section, tournament.core, round)
+				text := views.Round(*round).Caption(tournament.section.name, views.Tournament(*tournament.core))
+				loading := NewLoading(tournament.Base, tournament, factory, text, betsLoadMatchesText)
 				return loading, false, tgbotapi.NewCallback(update.CallbackQuery.ID, round.Name)
 			} else {
 				return nil, false, tgbotapi.NewCallback(update.CallbackQuery.ID, "")
@@ -60,7 +59,7 @@ func (tournament Tournament) Handle(update tgbotapi.Update) (Interface, bool, tg
 
 func (tournament Tournament) Out() *InterfaceOut {
 	if len(tournament.roundMap) == 0 {
-		text := views.Tournament(*tournament.core).Caption(tournament.Section.name)
+		text := views.Tournament(*tournament.core).Caption(tournament.section.name)
 		return &InterfaceOut{Keyboard: backKeyboard, Text: NewView(text, betsTournamentEmptyText).Text()}
 	}
 	rounds := core.GetRounds(tournament.roundSlice)
@@ -83,16 +82,15 @@ func (tournament Tournament) Out() *InterfaceOut {
 		}
 		keyboard = append(keyboard, row)
 	}
-	text := NewView(views.Tournament(*tournament.core).Caption(tournament.Section.name), betsRoundsText).Text()
+	text := NewView(views.Tournament(*tournament.core).Caption(tournament.section.name), betsRoundsText).Text()
 	return &InterfaceOut{Keyboard: append(keyboard, backRow), Text: text}
 }
 
 func (tf TournamentFactory) Execute(action *Loading) Interface {
 	if rounds, fail := core.GetTournamentRounds(tf.core); fail == nil {
-		section := NewSection(action.Base, action.Section.name)
-		return NewTournament(section, LoadMain(action.Base, action.Section.name), action, tf.core, rounds)
+		return NewTournament(action.Base, LoadMain(action.Base, tf.section), action, tf.section, tf.core, rounds)
 	}
-	text := views.Tournament(*tf.core).Caption(action.Section.name)
+	text := views.Tournament(*tf.core).Caption(tf.section.name)
 	return NewError(action.Base, action.Base, text, "!!!")
 }
 
@@ -104,11 +102,12 @@ type (
 		core       *core.Tournament
 		roundMap   MapRound
 		roundSlice []*core.Round
-		section    string
+		section    Section
 	}
 
 	TournamentFactory struct {
-		caller Interface
-		core   *core.Tournament
+		caller  Interface
+		core    *core.Tournament
+		section Section
 	}
 )

@@ -68,6 +68,10 @@ func (mt *MatchTeam) SetBet(arg byte) {
 	mt.bets = &arg
 }
 
+func (mt *MatchTeam) SetResult(arg byte) {
+	mt.result = &arg
+}
+
 func (mt MatchTeam) Short() *string {
 	return mt.short
 }

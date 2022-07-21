@@ -9,8 +9,8 @@ const (
 	backId   = "back"
 )
 
-func NewBack(section Section, caller, loader Interface) Back {
-	return Back{Section: section, buttons: backRow, caller: caller, loader: loader}
+func NewBack(base Base, caller, loader Interface) Back {
+	return Back{Base: base, buttons: backRow, caller: caller, loader: loader}
 }
 
 func (back Back) Handle(update telegram.Update) (Interface, bool, telegram.Chattable) {
@@ -20,13 +20,11 @@ func (back Back) Handle(update telegram.Update) (Interface, bool, telegram.Chatt
 	return back.Base.Handle(update)
 }
 
-type (
-	Back struct {
-		Section
-		buttons        []telegram.InlineKeyboardButton
-		caller, loader Interface
-	}
-)
+type Back struct {
+	Base
+	buttons        []telegram.InlineKeyboardButton
+	caller, loader Interface
+}
 
 var (
 	backButton   = telegram.NewInlineKeyboardButtonData(backText, backId)

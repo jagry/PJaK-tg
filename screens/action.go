@@ -13,10 +13,9 @@ const (
 	loadingTextSuffix      = ". Подождите, пожалуйста"
 )
 
-func NewLoading(base Base, section string, caller Interface, factory ActionFactory, caption, text string) *Loading {
-	runes := []rune(loadingCharacters[rand.Intn(loadingCharactersCount)])
-	super, view := NewSection(base, section), NewView(caption, text)
-	return &Loading{Section: super, caller: caller, factory: factory, index: -1, runes: runes, view: view}
+func NewLoading(b Base, i Interface, f ActionFactory, c, t string) *Loading {
+	runes, view := []rune(loadingCharacters[rand.Intn(loadingCharactersCount)]), NewView(c, t)
+	return &Loading{Base: b, caller: i, factory: f, index: -1, runes: runes, view: view}
 }
 
 func (loading Loading) Channel() chan Event {
@@ -31,7 +30,7 @@ func (loading Loading) close() {
 }
 
 func (loading *Loading) execute(event chan Event) {
-	time.Sleep(time.Second)
+	//time.Sleep(time.Second)
 	log.Println("screens.Loading.execute: sending event")
 	event <- loading.factory.Execute(loading)
 	log.Println("screens.Loading.execute: sent event")
@@ -104,10 +103,8 @@ func (loading *Loading) timer(event chan Event) {
 
 type (
 	Loading struct {
-		Section
-		caller Interface
-		//channel   LoadingChannel
-		//eventChan chan Event
+		Base
+		caller  Interface
 		factory ActionFactory
 		index   int
 		runes   []rune

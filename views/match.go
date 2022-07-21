@@ -47,7 +47,7 @@ func (match Match) Result(separator string) (result string) {
 		result = strconv.Itoa(int(*result1))
 	}
 	result += separator + ":" + separator
-	if result2 := core.Match(match).Team1.Result(); result2 == nil {
+	if result2 := core.Match(match).Team2.Result(); result2 == nil {
 		result += matchTeamGoalNil
 	} else {
 		result += strconv.Itoa(int(*result2))
@@ -118,25 +118,25 @@ func (match Match) Time() string {
 	return text
 }
 
-func (mt MatchTeam) Keys(null, prefixId string) []tgbotapi.InlineKeyboardButton {
-	bet, keys, start := core.MatchTeam(mt).Bet(), make([]tgbotapi.InlineKeyboardButton, matchKeyCount), 0
-	if bet == nil {
+func (mt MatchTeam) Keys(null, prefixId string, goals *byte) []tgbotapi.InlineKeyboardButton {
+	keys, start := make([]tgbotapi.InlineKeyboardButton, matchKeyCount), 0
+	if goals == nil {
 		for counter := 0; counter < matchKeyCount; counter++ {
 			valueStr := strconv.Itoa(counter)
 			keys[counter] = tgbotapi.NewInlineKeyboardButtonData(valueStr, prefixId+valueStr)
 		}
 	} else {
-		start = int(*bet) - (matchKeyCount+1)>>1
+		start = int(*goals) - (matchKeyCount+1)>>1
 		if start < 0 {
 			start = 0
 		} else if start > math.MaxUint8-matchKeyCount {
 			start = math.MaxUint8 - matchKeyCount
 		}
-		for counter := 0; counter < int(*bet)-start; counter++ {
+		for counter := 0; counter < int(*goals)-start; counter++ {
 			value := strconv.Itoa(counter + start)
 			keys[counter] = tgbotapi.NewInlineKeyboardButtonData(value, prefixId+value)
 		}
-		for counter := int(*bet) - start + 1; counter < matchKeyCount+1; counter++ {
+		for counter := int(*goals) - start + 1; counter < matchKeyCount+1; counter++ {
 			value := strconv.Itoa(counter + start)
 			keys[counter-1] = tgbotapi.NewInlineKeyboardButtonData(value, prefixId+value)
 		}
@@ -158,13 +158,13 @@ func (mt MatchTeam) Short(null string) string {
 	return null
 }
 
-func (mt MatchTeam) Table(null, prefixId, prefix, suffix string) string {
-	bet, text := core.MatchTeam(mt).Bet(), mt.Full(null)
+func (mt MatchTeam) Table(null string, goal *byte) string {
+	text := mt.Full(null)
 	text += strings.Repeat(" ", matchTeamNameLen-len([]rune(text)))
-	if bet == nil {
+	if goal == nil {
 		text += strings.Repeat(" ", matchTeamGoalLen-len([]rune(matchTeamGoalNil))) + matchTeamGoalNil
 	} else {
-		goal := strconv.Itoa(int(*bet))
+		goal := strconv.Itoa(int(*goal))
 		text += strings.Repeat(" ", matchTeamGoalLen-len([]rune(goal))) + goal
 	}
 	return text

@@ -5,8 +5,8 @@ import (
 )
 
 const (
-//errorId   = "error"
-//errorText = closeTextConst
+	errorId   = "error"
+	errorText = "🤔 Осознал"
 )
 
 func NewError(base Base, caller Interface, caption, text string) Error {
@@ -14,8 +14,8 @@ func NewError(base Base, caller Interface, caption, text string) Error {
 }
 
 func (error Error) Handle(update telegram.Update) (Interface, bool, telegram.Chattable) {
-	if update.CallbackQuery != nil && update.CallbackQuery.Data == "error" {
-		return error.caller, false, nil
+	if update.CallbackQuery != nil && update.CallbackQuery.Data == errorId {
+		return error.caller, false, telegram.NewCallback(update.CallbackQuery.ID, errorText)
 	}
 	return error.Base.Handle(update)
 }
@@ -34,4 +34,5 @@ type Error struct {
 	view   View
 }
 
-var errorKeyRow = []telegram.InlineKeyboardButton{telegram.NewInlineKeyboardButtonData(baseCloseText, baseCloseId)}
+var errorKeyRow = []telegram.InlineKeyboardButton{
+	telegram.NewInlineKeyboardButtonData(errorText, errorId), baseCloseButton}

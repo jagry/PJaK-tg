@@ -8,76 +8,97 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
-	"time"
 )
 
 const (
+	matchSaveId   = "match.save"
+	matchSaveText = "💾 Сохранить"
+
 	matchUndefined  = "<i>не определена</i>"
 	matchUndefined1 = "Команда 1"
 	matchUndefined2 = "Команда 2"
 )
 
-func matchHandle(cq tgbotapi.CallbackQuery, prefix, null string, team *core.MatchTeam) tgbotapi.Chattable {
-	idString := cq.Data[len(prefix):]
+func matchHandle(c tgbotapi.CallbackQuery, p, n string, s SectionTeamModify, t *core.MatchTeam) tgbotapi.Chattable {
+	idString := c.Data[len(p):]
 	idInt64, fail := strconv.ParseUint(idString, 10, 8)
 	if fail != nil {
 		panic("screens.BetsRound.Handle:" + fail.Error())
 	}
-	team.SetBet(byte(idInt64))
-	return tgbotapi.NewCallback(cq.ID, views.MatchTeam(*team).Short(null)+" "+idString)
+	s(t, byte(idInt64))
+	return tgbotapi.NewCallback(c.ID, views.MatchTeam(*t).Short(n)+" "+idString)
 }
 
-func NewMatch(s Section, c, l Interface, t *core.Tournament, r *core.Round, m *core.Match) Match {
-	return Match{Back: NewBack(s, c, l), core: m, round: r, tournament: t}
+func NewMatch(b Base, c, l Interface, s Section, t *core.Tournament, r *core.Round, m *core.Match) Match {
+	return Match{Back: NewBack(b, c, l), core: m, round: r, section: s, tournament: t}
 }
 
-func NewMatchFactory(caller Interface, tournament *core.Tournament, round *core.Round, core *core.Match) MatchFactory {
-	return MatchFactory{caller: caller, core: core, round: round, tournament: tournament}
+func NewMatchFactory(c Interface, s Section, t *core.Tournament, r *core.Round, m *core.Match) MatchFactory {
+	return MatchFactory{caller: c, core: m, round: r, section: s, tournament: t}
 }
 
-func NewMatchSave(b Base, s, e Interface, u int8, c *core.Match, r *core.Round, t *core.Tournament) MatchSave {
-	return MatchSave{base: b, core: c, error: e, round: r, success: s, tournament: t, user: u}
+func NewMatchSave(b Base, s, e Interface, c *core.Match, r *core.Round, t *core.Tournament, sc Section) MatchSave {
+	return MatchSave{base: b, core: c, error: e, round: r, section: sc, success: s, tournament: t}
 }
 
 func (match Match) Handle(update tgbotapi.Update) (Interface, bool, tgbotapi.Chattable) {
 	if update.CallbackQuery != nil {
 		if strings.HasPrefix(update.CallbackQuery.Data, betsMatchTeam1IdPrefix) {
-			callback := matchHandle(*update.CallbackQuery, betsMatchTeam1IdPrefix, matchUndefined1, &match.core.Team1)
+			callback := matchHandle(
+				*update.CallbackQuery,
+				betsMatchTeam1IdPrefix,
+				matchUndefined1,
+				match.section.teamModify,
+				&match.core.Team1)
 			return match, false, callback
 		} else if strings.HasPrefix(update.CallbackQuery.Data, betsMatchTeam2IdPrefix) {
-			callback := matchHandle(*update.CallbackQuery, betsMatchTeam2IdPrefix, matchUndefined2, &match.core.Team2)
+			callback := matchHandle(
+				*update.CallbackQuery,
+				betsMatchTeam2IdPrefix,
+				matchUndefined2,
+				match.section.teamModify,
+				&match.core.Team2)
 			return match, false, callback
-		} else if update.CallbackQuery.Data == betsSaveId {
+		} else if update.CallbackQuery.Data == matchSaveId {
 			factory := NewMatchSave(
-				match.Base, match.caller, match.loader, match.user, match.core, match.round, match.tournament)
-			loading := NewLoading(match.Base, match.Section.name, match.loader, factory, "ddd", "ggg")
-			return loading, false, tgbotapi.NewCallback(update.CallbackQuery.ID, betsSaveText)
+				match.Base,
+				match.caller,
+				match.loader,
+				// !!! match.user,
+				match.core,
+				match.round,
+				match.tournament,
+				match.section)
+			loading := NewLoading(match.Base, match.loader, factory, "ddd", "ggg")
+			return loading, false, tgbotapi.NewCallback(update.CallbackQuery.ID, matchSaveText)
 		}
 	} else if update.Message != nil && !update.Message.IsCommand() {
-		// TODO: Проверить не начался ли матч
 		dmc := tgbotapi.NewDeleteMessage(update.FromChat().ID, update.Message.MessageID)
-		regexp := regexp.MustCompile("^(\\d+)-(\\d+)$")
+		regexp := regexp.MustCompile("^(\\d+)[-:\\s](\\d+)$")
 		if regexpResult := regexp.FindStringSubmatch(update.Message.Text); len(regexpResult) == 3 {
-			goal1, fail := strconv.ParseUint(regexpResult[1], 10, 8)
+			newGoal1, fail := strconv.ParseUint(regexpResult[1], 10, 8)
 			if fail != nil {
 				if errors.Is(fail, strconv.ErrRange) {
 					return NewError(match.Base, match, baseUserCaptionText, "!!!! Число голов должно быть в диапазоне от 0 до 255 включительно"), false, dmc
 				}
 				// TODO: Проверить другую ошибку
 			}
-			goal2, fail := strconv.ParseUint(regexpResult[2], 10, 8)
+			newGoal2, fail := strconv.ParseUint(regexpResult[2], 10, 8)
 			if fail != nil {
 				if errors.Is(fail, strconv.ErrRange) {
 					return NewError(match.Base, match, baseUserCaptionText, "!!!! Число голов должно быть в диапазоне от 0 до 255 включительно"), false, dmc
 				}
 				// TODO: Проверить другую ошибку
 			}
-			team1, team2 := &match.core.Team1, &match.core.Team2
-			bet1, bet2 := team1.Bet(), team2.Bet()
-			if bet1 == nil || bet2 == nil || *bet1 != byte(goal1) || *bet2 != byte(goal2) {
-				team1.SetBet(byte(goal1))
-				team2.SetBet(byte(goal2))
-				return match, false, dmc
+			modify, oldGoal1, oldGoal2 := match.section.modify(*match.core)
+			if modify {
+				if oldGoal1 == nil || oldGoal2 == nil || *oldGoal1 != byte(newGoal1) || *oldGoal2 != byte(newGoal2) {
+					match.section.teamModify(&match.core.Team1, byte(newGoal1))
+					match.section.teamModify(&match.core.Team2, byte(newGoal2))
+					return match, false, dmc
+				}
+			} else {
+				return NewError(match.Base, match.loader, "!!! njj", "!!! njj"), false, dmc
 			}
 			return nil, false, dmc
 		}
@@ -87,45 +108,24 @@ func (match Match) Handle(update tgbotapi.Update) (Interface, bool, tgbotapi.Cha
 }
 
 func (match Match) Out() *InterfaceOut {
-	caption := views.Round(*match.round).Caption(betsCaption, views.Tournament(*match.tournament))
-	helper1, helper2 := views.MatchTeam(match.core.Team1), views.MatchTeam(match.core.Team2)
-	keys := make([][]tgbotapi.InlineKeyboardButton, 0)
-	text := "<pre>" +
-		helper1.Table(matchUndefined1, betsMatchTeam1IdPrefix, betsPrefixSelected, betsSuffixSelected) + "\n" +
-		helper2.Table(matchUndefined2, betsMatchTeam2IdPrefix, betsPrefixSelected, betsSuffixSelected) + "</pre>"
-	if match.core.Team1.Result() == nil && match.core.Team2.Result() == nil {
-		if match.core.Time().Sub(time.Now()) < 0 {
-			text += "Матч начался"
-		} else {
-			text += "Начало матча: " + views.Match(*match.core).Time()
-			keys = append(keys, helper1.Keys("", betsMatchTeam1IdPrefix))
-			keys = append(keys, helper2.Keys("", betsMatchTeam2IdPrefix))
-			keys = append(keys, []tgbotapi.InlineKeyboardButton{betsSaveButton})
-		}
-	} else {
-		if match.core.Time().Sub(time.Now()) < 0 {
-			text += "Счет матча: " + views.Match(*match.core).Result("")
-		} else {
-			text = "Хуйня какая-то: матч не начался, а счет есть"
-		}
-	}
-	keys = append(keys, match.Back.buttons)
-	return &InterfaceOut{Keyboard: keys, Text: NewView(caption, text).Text()}
+	caption := views.Round(*match.round).Caption(match.section.name, views.Tournament(*match.tournament))
+	text, keys := match.section.screen(*match.core)
+	return &InterfaceOut{Keyboard: append(keys, match.Back.buttons), Text: NewView(caption, text).Text()}
 }
 
 func (mf MatchFactory) Execute(action *Loading) Interface {
 	if match, fail := core.GetMatch(mf.core.Id, action.User()); fail == nil {
-		return NewMatch(action.Section, mf.caller, action, mf.tournament, mf.round, &match)
+		return NewMatch(action.Base, mf.caller, action, mf.section, mf.tournament, mf.round, &match)
 	}
 	return NewError(action.Base, action.Base, betsCaption, "!!!")
 }
 
 func (ms MatchSave) Execute(action *Loading) Interface {
-	if fail := core.SaveBets(*ms.core.Team1.Bet(), *ms.core.Team2.Bet(), ms.core.Id, ms.user); fail == nil {
+	if fail := ms.section.save(*ms.core, action.user); fail == nil {
 		return ms.success
 	}
 	tournament := views.Tournament(*ms.tournament)
-	caption := views.Match(*ms.core).Caption(betsCaption, views.Round(*ms.round), tournament)
+	caption := views.Match(*ms.core).Caption(ms.section.name, views.Round(*ms.round), tournament)
 	return NewError(ms.base, ms.error, caption, "!!! Не удалось сохранить данные")
 }
 
@@ -136,6 +136,7 @@ type (
 		Back
 		core       *core.Match
 		round      *core.Round
+		section    Section
 		tournament *core.Tournament
 	}
 
@@ -143,6 +144,7 @@ type (
 		caller     Interface
 		core       *core.Match
 		round      *core.Round
+		section    Section
 		tournament *core.Tournament
 	}
 
@@ -151,12 +153,12 @@ type (
 		core       *core.Match
 		error      Interface
 		round      *core.Round
+		section    Section
 		success    Interface
 		tournament *core.Tournament
-		user       int8
 	}
 )
 
 var (
-	betsSaveButton = tgbotapi.NewInlineKeyboardButtonData(betsSaveText, betsSaveId)
+	matchSaveButton = tgbotapi.NewInlineKeyboardButtonData(matchSaveText, matchSaveId)
 )

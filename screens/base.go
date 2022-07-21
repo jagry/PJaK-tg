@@ -38,11 +38,13 @@ func (base Base) Handle(update telegram.Update) (Interface, bool, telegram.Chatt
 		if update.Message.IsCommand() {
 			switch update.Message.Text {
 			case "/bets":
-				return NewLoading(base, betsCaption, base, NewMainFactory(), betsCaption, mainLoadText), true, dmc
+				return NewLoading(base, base, NewMainFactory(bets()), betsCaption, mainLoadText), true, dmc
 			case "/results":
-				return NewLoading(base, resultsCaption, base, NewMainFactory(), resultsCaption, mainLoadText), true, dmc
+				return NewLoading(base, base, NewMainFactory(results()), resultsCaption, mainLoadText), true, dmc
+			case "/start":
+				return NewLoading(base, base, NewMainFactory(bets()), betsCaption, mainLoadText), true, dmc
 			case "/statistic":
-				return NewLoading(base, betsCaption, base, NewMainFactory(), betsCaption, mainLoadText), true, dmc
+				return NewLoading(base, base, NewMainFactory(bets()), betsCaption, mainLoadText), true, dmc
 			}
 			return NewError(base, base, baseUserCaption, baseCommandText), true, dmc
 		}
