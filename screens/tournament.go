@@ -12,29 +12,28 @@ const (
 	loadTournamentText = "Идет загрузка туров" + loadingTextSuffix
 )
 
-func initTournament(matchMap *MapRound, matchSlice []*core.Round) {
+func initTournament(matchMap MapRound, matchSlice []core.Round) MapRound {
 	for _, match := range matchSlice {
 		if len(match.Rounds) == 0 {
-			(*matchMap)[match.Id] = match
+			matchMap[match.Id] = match
 		} else {
 			initTournament(matchMap, match.Rounds)
 		}
 	}
+	return matchMap
 }
 
-func LoadTournament(base Base, section Section, caller Interface, core *core.Tournament) *Loading {
-	caption := views.Tournament(*core).Caption(section.name)
-	return NewLoading(base, caller, NewTournamentFactory(caller, section, core), caption, loadTournamentText)
+func LoadTournament(base Base, caller Interface, manager matchManager, section string, core core.Tournament) *Loading {
+	return NewLoading(base, caller, NewTournamentFactory(caller, manager, section, core), loadTournamentText)
 }
 
-func NewTournament(b Base, c, l Interface, s Section, t *core.Tournament, r []*core.Round) Tournament {
-	roundMap := MapRound{}
-	initTournament(&roundMap, r)
-	return Tournament{Back: NewBack(b, c, l), core: t, roundMap: roundMap, roundSlice: r, section: s}
+func NewTournament(b Base, c, l Interface, m matchManager, s string, t core.Tournament, r []core.Round) Tournament {
+	roundMap := initTournament(MapRound{}, r)
+	return Tournament{Back: NewBack(b, c, l), core: t, manager: m, roundMap: roundMap, roundSlice: r, section: s}
 }
 
-func NewTournamentFactory(caller Interface, section Section, core *core.Tournament) TournamentFactory {
-	return TournamentFactory{caller: caller, core: core, section: section}
+func NewTournamentFactory(c Interface, m matchManager, s string, t core.Tournament) TournamentFactory {
+	return TournamentFactory{BaseAction: NewBaseAction(s), caller: c, core: t, manager: m}
 }
 
 func (tournament Tournament) Handle(update tgbotapi.Update) (Interface, bool, tgbotapi.Chattable) {
@@ -45,9 +44,10 @@ func (tournament Tournament) Handle(update tgbotapi.Update) (Interface, bool, tg
 				panic("screens.BetsTournament.Handle:" + fail.Error())
 			}
 			if round, ok := tournament.roundMap[core.RoundId(id)]; ok {
-				factory := NewRoundFactory(tournament.loader, tournament.section, tournament.core, round)
-				text := views.Round(*round).Caption(tournament.section.name, views.Tournament(*tournament.core))
-				loading := NewLoading(tournament.Base, tournament, factory, text, betsLoadMatchesText)
+				factory := NewRoundFactory(tournament.loader, tournament.manager,
+					tournament.section, tournament.core, round)
+				// !!! text := views.Round(round).Caption(tournament.section, views.Tournament(*tournament.core))
+				loading := NewLoading(tournament.Base, tournament, factory, betsLoadMatchesText)
 				return loading, false, tgbotapi.NewCallback(update.CallbackQuery.ID, round.Name)
 			} else {
 				return nil, false, tgbotapi.NewCallback(update.CallbackQuery.ID, "")
@@ -59,11 +59,10 @@ func (tournament Tournament) Handle(update tgbotapi.Update) (Interface, bool, tg
 
 func (tournament Tournament) Out() *InterfaceOut {
 	if len(tournament.roundMap) == 0 {
-		text := views.Tournament(*tournament.core).Caption(tournament.section.name)
+		text := views.Tournament(tournament.core).Caption(tournament.section)
 		return &InterfaceOut{Keyboard: backKeyboard, Text: NewView(text, betsTournamentEmptyText).Text()}
 	}
-	rounds := core.GetRounds(tournament.roundSlice)
-	keyboard := make([][]tgbotapi.InlineKeyboardButton, 0)
+	keyboard, rounds := make([][]tgbotapi.InlineKeyboardButton, 0), core.GetRounds(tournament.roundSlice)
 	for counter := 0; counter < len(rounds); counter = counter + betsRowCount {
 		row := make([]tgbotapi.InlineKeyboardButton, 0)
 		bound := counter + betsRowCount
@@ -82,32 +81,35 @@ func (tournament Tournament) Out() *InterfaceOut {
 		}
 		keyboard = append(keyboard, row)
 	}
-	text := NewView(views.Tournament(*tournament.core).Caption(tournament.section.name), betsRoundsText).Text()
+	text := NewView(views.Tournament(tournament.core).Caption(tournament.section), betsRoundsText).Text()
 	return &InterfaceOut{Keyboard: append(keyboard, backRow), Text: text}
 }
 
+func (tf TournamentFactory) Caption() string { return views.Tournament(tf.core).Caption(tf.section) }
+
 func (tf TournamentFactory) Execute(action *Loading) Interface {
 	if rounds, fail := core.GetTournamentRounds(tf.core); fail == nil {
-		return NewTournament(action.Base, LoadMain(action.Base, tf.section), action, tf.section, tf.core, rounds)
+		return NewTournament(action.Base, action.caller, action, tf.manager, tf.section, tf.core, rounds)
 	}
-	text := views.Tournament(*tf.core).Caption(tf.section.name)
-	return NewError(action.Base, action.Base, text, "!!!")
+	return NewError(action.Base, action.Base, tf.Caption(), "!!!")
 }
 
 type (
-	MapTournament map[core.TournamentId]*core.Tournament
+	MapTournament map[core.TournamentId]int
 
 	Tournament struct {
 		Back
-		core       *core.Tournament
+		core       core.Tournament
+		manager    matchManager
 		roundMap   MapRound
-		roundSlice []*core.Round
-		section    Section
+		roundSlice []core.Round
+		section    string
 	}
 
 	TournamentFactory struct {
+		BaseAction
 		caller  Interface
-		core    *core.Tournament
-		section Section
+		core    core.Tournament
+		manager matchManager
 	}
 )

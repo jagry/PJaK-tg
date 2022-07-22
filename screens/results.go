@@ -9,31 +9,32 @@ import (
 
 const (
 	resultsCaption      = resultsCaptionEmoji + " " + resultsCaptionText
-	resultsCaptionText  = "Результаты"
 	resultsCaptionEmoji = "⚽️"
+	resultsCaptionText  = "Результаты"
 )
-
-func results() Section {
-	return NewSection(resultsCaption, resultButton, resultsModify, resultsSave, resultsScreen, resultsTeamModify)
-}
 
 func resultButton(match core.Match) string {
 	view := views.Match(match)
-	text := " " + view.Players(matchUndefined, ":") + " "
+	text := view.Players(matchUndefined, ":")
 	if match.Team1.Result() == nil && match.Team2.Result() == nil {
 		if match.Time().Sub(time.Now()) > 0 {
-			text = "\U0001F7E1" + text + " / " + view.Time()
+			text += " \U0001F7E1 " + view.Time()
 		} else {
-			text = "\U0001F7E2" + text + view.Result("")
+			text += " \U0001F7E2 " + view.Result("")
 		}
 	} else {
 		if match.Time().Sub(time.Now()) > 0 {
-			text = "🔵" + text
+			text += " 🔵"
 		} else {
-			text = "\U0001F7E0" + text + view.Result("")
+			text += " \U0001F7E0 " + view.Result("")
 		}
 	}
 	return text
+}
+
+func resultsMainManagerTournament(main Main, tournament core.Tournament) *Loading {
+	return LoadTournament(main.Base, LoadMain(main.Base, main.manager, resultsCaption),
+		resultsMatchManager, main.section, tournament)
 }
 
 func resultsModify(match core.Match) (bool, *byte, *byte) {
@@ -67,6 +68,11 @@ func resultsScreen(match core.Match) (string, [][]tgbotapi.InlineKeyboardButton)
 	return text, keys
 }
 
-func resultsTeamModify(team *core.MatchTeam, result byte) {
+func resultsTeam(team *core.MatchTeam, result byte) {
 	team.SetResult(result)
 }
+
+var (
+	resultsMainManager  = NewMainManager(resultsMainManagerTournament)
+	resultsMatchManager = newMatchManager(resultButton, resultsModify, resultsSave, resultsScreen, resultsTeam)
+)

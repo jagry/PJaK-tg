@@ -9,8 +9,8 @@ import (
 
 const (
 	betsCaption      = betsCaptionEmoji + " " + betsCaptionText
-	betsCaptionText  = "Прогнозы"
 	betsCaptionEmoji = "🎲"
+	betsCaptionText  = "Прогнозы"
 )
 
 const (
@@ -33,27 +33,28 @@ const (
 	betsTournamentEmptyText = "Расписание туров будет определено позже"
 )
 
-func bets() Section {
-	return NewSection(betsCaption, betsButton, betsModify, betsSave, betsScreen, betsTeamModify)
-}
-
 func betsButton(match core.Match) string {
 	view := views.Match(match)
 	text := " " + view.Players(matchUndefined, ":") + " " + view.Bet("")
 	if match.Team1.Result() == nil && match.Team2.Result() == nil {
 		if match.Time().Sub(time.Now()) > 0 {
-			text = "\U0001F7E1" + text + " / " + view.Time()
+			text += " \U0001F7E1 " + view.Time()
 		} else {
-			text = "\U0001F7E2" + text
+			text += " \U0001F7E2"
 		}
 	} else {
 		if match.Time().Sub(time.Now()) > 0 {
-			text = "🔵" + text
+			text += " 🔵"
 		} else {
-			text = "\U0001F7E0" + text + " / " + view.Result("")
+			text += " \U0001F7E0 " + view.Result("")
 		}
 	}
 	return text
+}
+
+func betsMainManagerTournament(main Main, tournament core.Tournament) *Loading {
+	return LoadTournament(main.Base, LoadMain(main.Base, main.manager, betsCaption),
+		betsMatchManager, main.section, tournament)
 }
 
 func betsModify(match core.Match) (bool, *byte, *byte) {
@@ -73,7 +74,7 @@ func betsScreen(match core.Match) (string, [][]tgbotapi.InlineKeyboardButton) {
 	keys := make([][]tgbotapi.InlineKeyboardButton, 0, 3)
 	text := "<pre>" + helper1.Table(matchUndefined1, bet1) + "\n" + helper2.Table(matchUndefined2, bet2) + "</pre>"
 	if match.Time().Sub(time.Now()) > 0 {
-		if bet1 == nil && bet2 == nil {
+		if match.Team1.Result() == nil && match.Team1.Result() == nil {
 			text += "Начало матча: " + views.Match(match).Time()
 		} else {
 			text += "Хуйня какая-то: матч не начался, а счет есть"
@@ -91,14 +92,7 @@ func betsScreen(match core.Match) (string, [][]tgbotapi.InlineKeyboardButton) {
 
 func betsTeamModify(team *core.MatchTeam, bet byte) { team.SetBet(bet) }
 
-func (bm BetsManager) Section(main Main, tournament *core.Tournament) string {
-	return bm.section
-}
-
-func (bm BetsManager) Tournament(main Main, tournament *core.Tournament) *Loading {
-	return LoadTournament(main.Base, bets(), LoadMain(main.Base, bets()), tournament)
-}
-
-type BetsManager struct {
-	section string
-}
+var (
+	betsMainManager  = NewMainManager(betsMainManagerTournament)
+	betsMatchManager = newMatchManager(betsButton, betsModify, betsSave, betsScreen, betsTeamModify)
+)

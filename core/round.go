@@ -10,7 +10,7 @@ const (
 		JOIN "seasonRound" "s" ON "r"."id" = "s"."round" WHERE "s"."ts" = $1`
 )
 
-func GetRounds(rounds []*Round) (result []*Round) {
+func GetRounds(rounds []Round) (result []Round) {
 	for _, round := range rounds {
 		if len(round.Rounds) == 0 {
 			result = append(result, round)
@@ -21,7 +21,7 @@ func GetRounds(rounds []*Round) (result []*Round) {
 	return
 }
 
-func GetRoundsPrefix(prefix string, rounds []*Round) (result []*Round) {
+func GetRoundsPrefix(prefix string, rounds []Round) (result []Round) {
 	for _, round := range rounds {
 		if len(round.Rounds) == 0 {
 			round.Name = prefix + " " + round.Name
@@ -33,7 +33,7 @@ func GetRoundsPrefix(prefix string, rounds []*Round) (result []*Round) {
 	return
 }
 
-func getRounds(query string, id uint16) ([]*Round, error) {
+func getRounds(query string, id uint16) ([]Round, error) {
 	rows, fail := db.Query(query, id)
 	if rows != nil {
 		defer rows.Close()
@@ -42,9 +42,9 @@ func getRounds(query string, id uint16) ([]*Round, error) {
 		log.Println("core.getRounds:", fail.Error())
 		return nil, fail
 	}
-	result := make([]*Round, 0)
+	result := make([]Round, 0)
+	round := Round{}
 	for rows.Next() {
-		round := &Round{}
 		fail = rows.Scan(&round.Id, &round.Name)
 		if fail != nil {
 			return nil, fail
@@ -55,7 +55,7 @@ func getRounds(query string, id uint16) ([]*Round, error) {
 	return result, nil
 }
 
-func GetTournamentRounds(tournament *Tournament) ([]*Round, error) {
+func GetTournamentRounds(tournament Tournament) ([]Round, error) {
 	return getRounds(getTournamentRounds, uint16(tournament.Id))
 }
 
@@ -63,7 +63,7 @@ type (
 	Round struct {
 		Id         RoundId
 		Name       string
-		Rounds     []*Round
+		Rounds     []Round
 		Tournament Tournament
 	}
 

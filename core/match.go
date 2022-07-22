@@ -25,8 +25,8 @@ func GetMatch(matchId MatchId, user int8) (match Match, fail error) {
 	return
 }
 
-func GetMatches(round *Round, user int8) ([]*Match, error) {
-	result := make([]*Match, 0)
+func GetMatches(round Round, user int8) ([]Match, error) {
+	result := make([]Match, 0)
 	rows, fail := db.Query(getMatches, user, round.Id)
 	if rows != nil {
 		defer rows.Close()
@@ -35,8 +35,8 @@ func GetMatches(round *Round, user int8) ([]*Match, error) {
 		log.Println("core.GetMatches:", fail.Error())
 		return nil, fail
 	}
+	match := Match{}
 	for rows.Next() {
-		match := &Match{}
 		vars := []interface{}{&match.Id, &match.Team1.bets, &match.Team1.full, &match.Team1.result, &match.Team1.short}
 		vars = append(vars, &match.Team2.bets, &match.Team2.full, &match.Team2.result, &match.Team2.short, &match.time)
 		fail = rows.Scan(vars...)

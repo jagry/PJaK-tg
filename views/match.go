@@ -57,34 +57,7 @@ func (match Match) Result(separator string) (result string) {
 
 func (match Match) Time() string {
 	time := core.Match(match).Time()
-	text := strconv.Itoa(time.Day()) + "."
-	switch time.Month() {
-	case 1:
-		text += "Ⅰ"
-	case 2:
-		text += "Ⅱ"
-	case 3:
-		text += "Ⅲ"
-	case 4:
-		text += "Ⅳ"
-	case 5:
-		text += "Ⅴ"
-	case 6:
-		text += "Ⅵ"
-	case 7:
-		text += "Ⅶ"
-	case 8:
-		text += "Ⅷ"
-	case 9:
-		text += "Ⅸ"
-	case 10:
-		text += "Ⅹ"
-	case 11:
-		text += "Ⅺ"
-	case 12:
-		text += "Ⅻ"
-	}
-	text += " "
+	text := strconv.Itoa(time.Day()) + "." + string(time.Month()+'Ⅰ') + " "
 	temp := time.Hour()
 	if temp < 10 {
 		text += "0"
