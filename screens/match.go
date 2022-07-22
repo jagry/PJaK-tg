@@ -33,7 +33,7 @@ func newLoadMatch(c Interface, m matchManager, s string, t core.Tournament, r co
 	return loadMatch{BaseAction: NewBaseAction(s), caller: c, core: cm, manager: m, round: r, tournament: t}
 }
 
-func NewMatch(b Base, c, l Interface, m matchManager, s string, t core.Tournament, r core.Round, cm core.Match) match {
+func newMatch(b Base, c, l Interface, m matchManager, s string, t core.Tournament, r core.Round, cm core.Match) match {
 	return match{Back: NewBack(b, c, l), core: cm, manager: m, round: r, section: s, tournament: t}
 }
 
@@ -58,7 +58,7 @@ func (lm loadMatch) Caption() string {
 
 func (lm loadMatch) Execute(action *Loading) Interface {
 	if match, fail := core.GetMatch(lm.core.Id, action.User()); fail == nil {
-		return NewMatch(action.Base, lm.caller, action, lm.manager, lm.section, lm.tournament, lm.round, match)
+		return newMatch(action.Base, lm.caller, action, lm.manager, lm.section, lm.tournament, lm.round, match)
 	}
 	return NewError(action.Base, action.Base, betsCaption, "!!!")
 }
