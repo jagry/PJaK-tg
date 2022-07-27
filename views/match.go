@@ -91,6 +91,13 @@ func (match Match) Time() string {
 	return text
 }
 
+func (mt MatchTeam) Bet(null string) string {
+	if bet := core.MatchTeam(mt).Bet(); bet != nil {
+		return strconv.Itoa(int(*bet))
+	}
+	return null
+}
+
 func (mt MatchTeam) Keys(null, prefixId string, goals *byte) []tgbotapi.InlineKeyboardButton {
 	keys, start := make([]tgbotapi.InlineKeyboardButton, matchKeyCount), 0
 	if goals == nil {

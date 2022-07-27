@@ -1,13 +1,21 @@
 package main
 
-import tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
+import (
+	"errors"
+	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
+)
 
 func (task UpdateTask) execute(chat *Chat) (result TaskChan) {
 	screen, new, chatTable := chat.Screen.Handle(task.update)
 	if chatTable != nil {
 		_, fail := BotAPI.Request(chatTable)
 		if fail != nil {
-			panic("UpdateTask.execute-1: " + fail.Error())
+			var error *tgbotapi.Error
+			if errors.As(fail, &error) {
+				panic("UpdateTask.execute-0: " + fail.Error())
+			} else {
+				panic("UpdateTask.execute-1: " + fail.Error())
+			}
 		}
 	}
 	if screen != nil {

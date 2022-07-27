@@ -87,11 +87,12 @@ func (tournament Tournament) Out() *InterfaceOut {
 
 func (tf TournamentFactory) Caption() string { return views.Tournament(tf.core).Caption(tf.section) }
 
-func (tf TournamentFactory) Execute(action *Loading) Interface {
+func (tf TournamentFactory) Execute(action *Loading) Event {
 	if rounds, fail := core.GetTournamentRounds(tf.core); fail == nil {
-		return NewTournament(action.Base, action.caller, action, tf.manager, tf.section, tf.core, rounds)
+		tournament := NewTournament(action.Base, action.caller, action, tf.manager, tf.section, tf.core, rounds)
+		return NewEvent(tournament, "")
 	}
-	return NewError(action.Base, action.Base, tf.Caption(), "!!!")
+	return NewEvent(NewError(action.Base, action.Base, tf.Caption(), "!!!"), "")
 }
 
 type (

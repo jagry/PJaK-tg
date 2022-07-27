@@ -25,9 +25,11 @@ func NewBaseAction(section string) BaseAction {
 	return BaseAction{section: section}
 }
 
-func (Base) Channel() chan Event { return nil }
+//func (Base) Channel() chan Event { return nil }
 
 func (Base) Close() {}
+
+func (Base) Message() {}
 
 func (Base) Init() chan bool { return nil }
 
@@ -60,13 +62,9 @@ func (base Base) Handle(update telegram.Update) (Interface, bool, telegram.Chatt
 
 func (Base) Hook(argument Interface) Interface { return argument }
 
-func (Base) Out() *InterfaceOut {
-	return nil
-}
+func (Base) Out() *InterfaceOut { return nil }
 
-func (base Base) User() int8 {
-	return base.user
-}
+//func (base Base) User() int8 { return base.user }
 
 //func (ba BaseAction) Section() string { return ba.section }
 

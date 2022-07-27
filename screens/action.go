@@ -30,7 +30,7 @@ func (loading Loading) close() {
 }
 
 func (loading *Loading) execute(event chan Event) {
-	time.Sleep(time.Second)
+	//time.Sleep(time.Second)
 	log.Println("screens.Loading.execute: sending event")
 	event <- loading.factory.Execute(loading)
 	log.Println("screens.Loading.execute: sent event")
@@ -68,7 +68,7 @@ func (loading *Loading) timer(event chan Event) {
 		select {
 		case finish := <-event:
 			log.Println("screens.Loading.timer: received event")
-			if finish != nil {
+			if finish.Screen != nil {
 				log.Println("screens.Loading.timer: sending to chat 0")
 				loading.channel <- finish
 				log.Println("screens.Loading.timer: sent to chat 0")
@@ -81,7 +81,7 @@ func (loading *Loading) timer(event chan Event) {
 			log.Println("screens.Loading.timer: wait event")
 			finish = <-event
 			log.Println("screens.Loading.timer: received event")
-			if finish != nil {
+			if finish.Screen != nil {
 				log.Println("screens.Loading.timer: closing event 1")
 				close(event)
 				log.Println("screens.Loading.timer: closed event 1")
@@ -95,7 +95,7 @@ func (loading *Loading) timer(event chan Event) {
 				loading.index = 0
 			}
 			log.Println("screens.Loading.timer: sending to chat 1", loading.channel)
-			loading.channel <- nil
+			loading.channel <- Event{}
 			log.Println("screens.Loading.timer: sent to chat 1")
 		}
 	}
@@ -120,7 +120,7 @@ type (
 
 	ActionFactory interface {
 		Caption() string
-		Execute(action *Loading) Interface
+		Execute(action *Loading) Event
 	}
 )
 

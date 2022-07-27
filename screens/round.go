@@ -67,11 +67,11 @@ func (rf RoundFactory) Caption() string {
 	return views.Round(rf.core).Caption(rf.section, views.Tournament(rf.tournament))
 }
 
-func (rf RoundFactory) Execute(action *Loading) Interface {
-	if matches, fail := core.GetMatches(rf.core, action.User()); fail == nil {
-		return NewRound(action.Base, rf.caller, action, rf.manager, rf.section, rf.tournament, rf.core, matches)
+func (rf RoundFactory) Execute(action *Loading) Event {
+	if matches, fail := core.GetMatches(rf.core, action.user); fail == nil {
+		return NewEvent(NewRound(action.Base, rf.caller, action, rf.manager, rf.section, rf.tournament, rf.core, matches), "")
 	}
-	return NewError(action.Base, action.Base, "!!!", "!!!")
+	return NewEvent(NewError(action.Base, action.Base, "!!!", "!!!"), "")
 }
 
 type (

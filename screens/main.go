@@ -64,11 +64,11 @@ func (main Main) Out() *InterfaceOut {
 	return &InterfaceOut{Keyboard: keyboard, Text: NewView(main.section, betsTournamentsText).Text()}
 }
 
-func (mf MainFactory) Execute(action *Loading) Interface {
+func (mf MainFactory) Execute(action *Loading) Event {
 	if tournaments, fail := core.GetTournaments(); fail == nil {
-		return NewMain(action.Base, mf.manager, mf.section, tournaments)
+		return NewEvent(NewMain(action.Base, mf.manager, mf.section, tournaments), "")
 	}
-	return NewError(action.Base, action.Base, mf.section, mainErrorText)
+	return NewEvent(NewError(action.Base, action.Base, mf.section, mainErrorText), "")
 }
 
 func (mf MainFactory) Caption() string { return mf.section }

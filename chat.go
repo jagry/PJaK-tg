@@ -90,11 +90,18 @@ func (chat *Chat) routine(channel chan screens.Event) {
 				chat.taskSlice = append(chat.taskSlice, UpdateTask{update})
 			}
 		case event := <-channel:
-			if event != nil {
-				event.Init()
+			if event.Screen != nil {
+				event.Screen.Init()
 				chat.Screen.Close()
 			}
-			chat.out(event, false)
+			if event.Text != "" {
+				BotAPI.Request(tgbotapi.NewDeleteMessage(chat.id, chat.Message))
+				message := tgbotapi.NewMessage(chat.id, event.Text)
+				message.ParseMode = "html"
+				BotAPI.Request(message)
+				chat.Message = 0
+			}
+			chat.out(event.Screen, false)
 		}
 		//		}
 	}

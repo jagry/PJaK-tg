@@ -56,11 +56,12 @@ func (lm loadMatch) Caption() string {
 	return views.Match(lm.core).Caption(lm.section, views.Round(lm.round), views.Tournament(lm.tournament))
 }
 
-func (lm loadMatch) Execute(action *Loading) Interface {
-	if match, fail := core.GetMatch(lm.core.Id, action.User()); fail == nil {
-		return newMatch(action.Base, lm.caller, action, lm.manager, lm.section, lm.tournament, lm.round, match)
+func (lm loadMatch) Execute(action *Loading) Event {
+	if match, fail := core.GetMatch(lm.core.Id, action.user); fail == nil {
+		screen := newMatch(action.Base, lm.caller, action, lm.manager, lm.section, lm.tournament, lm.round, match)
+		return NewEvent(screen, "")
 	}
-	return NewError(action.Base, action.Base, betsCaption, "!!!")
+	return NewEvent(NewError(action.Base, action.Base, betsCaption, "!!!"), "")
 }
 
 func (match match) Handle(update tgbotapi.Update) (Interface, bool, tgbotapi.Chattable) {
@@ -124,11 +125,11 @@ func (sm saveMatch) Caption() string {
 	return views.Match(sm.core).Caption(sm.section, views.Round(sm.round), views.Tournament(sm.tournament))
 }
 
-func (sm saveMatch) Execute(action *Loading) Interface {
-	if fail := sm.manager.save(sm.core, action.user); fail == nil {
-		return sm.success
+func (sm saveMatch) Execute(action *Loading) Event {
+	if goal1, goal2, fail := sm.manager.save(sm.core, action.user); fail == nil {
+		return NewEvent(sm.success, sm.Caption()+": "+views.Goals(&goal1, &goal2))
 	}
-	return NewError(sm.base, sm.error, sm.Caption(), "!!! Не удалось сохранить данные")
+	return NewEvent(NewError(sm.base, sm.error, sm.Caption(), "!!! Не удалось сохранить данные"), "")
 }
 
 type (
@@ -164,7 +165,7 @@ type (
 
 	matchManagerModify func(core.Match) (bool, *byte, *byte)
 
-	matchManagerSave func(core.Match, int8) error
+	matchManagerSave func(core.Match, int8) (byte, byte, error)
 
 	matchManagerScreen func(core.Match) (string, [][]tgbotapi.InlineKeyboardButton)
 
