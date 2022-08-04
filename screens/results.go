@@ -33,8 +33,8 @@ func resultButton(match core.Match) string {
 }
 
 func resultsMainManagerTournament(main Main, tournament core.Tournament) *Loading {
-	return LoadTournament(main.Base, LoadMain(main.Base, main.manager, resultsCaption),
-		resultsMatchManager, main.section, tournament)
+	load := loadMain(main.Base, main.manager, resultsCaption)
+	return LoadTournament(main.Base, load, resultsMatchManager, main.section, tournament)
 }
 
 func resultsModify(match core.Match) (bool, *byte, *byte) {

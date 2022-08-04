@@ -56,7 +56,7 @@ func (lm loadMatch) Caption() string {
 	return views.Match(lm.core).Caption(lm.section, views.Round(lm.round), views.Tournament(lm.tournament))
 }
 
-func (lm loadMatch) Execute(action *Loading) Event {
+func (lm loadMatch) Do(action *Loading) Event {
 	if match, fail := core.GetMatch(lm.core.Id, action.user); fail == nil {
 		screen := newMatch(action.Base, lm.caller, action, lm.manager, lm.section, lm.tournament, lm.round, match)
 		return NewEvent(screen, "")
@@ -75,9 +75,9 @@ func (match match) Handle(update tgbotapi.Update) (Interface, bool, tgbotapi.Cha
 				matchUndefined2, match.manager.team, &match.core.Team2)
 			return match, false, callback
 		} else if update.CallbackQuery.Data == matchSaveId {
-			factory := newSaveMatch(match.Base, match.caller, match.loader,
-				match.manager, match.section, match.core, match.round, match.tournament)
-			loading := NewLoading(match.Base, match.loader, factory, "!!!ggg")
+			save := newSaveMatch(match.Base, match.caller, match.loader, match.manager,
+				match.section, match.core, match.round, match.tournament)
+			loading := NewLoading(match.Base, match.loader, save, "!!!ggg")
 			return loading, false, tgbotapi.NewCallback(update.CallbackQuery.ID, matchSaveText)
 		}
 	} else if update.Message != nil && !update.Message.IsCommand() {
@@ -125,7 +125,7 @@ func (sm saveMatch) Caption() string {
 	return views.Match(sm.core).Caption(sm.section, views.Round(sm.round), views.Tournament(sm.tournament))
 }
 
-func (sm saveMatch) Execute(action *Loading) Event {
+func (sm saveMatch) Do(action *Loading) Event {
 	if goal1, goal2, fail := sm.manager.save(sm.core, action.user); fail == nil {
 		return NewEvent(sm.success, sm.Caption()+": "+views.Goals(&goal1, &goal2))
 	}

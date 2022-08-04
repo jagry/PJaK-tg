@@ -13,8 +13,8 @@ const (
 	mainErrorText = "Ошибка загрузки футбольных турниров"
 )
 
-func LoadMain(base Base, manager MainManager, section string) *Loading {
-	return NewLoading(base, base, NewMainFactory(manager, section), mainLoadText)
+func loadMain(base Base, manager MainManager, section string) *Loading {
+	return NewLoading(base, base, NewLoadMain(manager, section), mainLoadText)
 }
 
 func NewMain(base Base, manager MainManager, section string, tournaments []core.Tournament) Main {
@@ -25,8 +25,8 @@ func NewMain(base Base, manager MainManager, section string, tournaments []core.
 	return Main{Base: base, manager: manager, section: section, tournamentMap: tournamentMap, tournamentSlice: tournaments}
 }
 
-func NewMainFactory(manager MainManager, section string) MainFactory {
-	return MainFactory{manager: manager, section: section}
+func NewLoadMain(manager MainManager, section string) LoadMain {
+	return LoadMain{manager: manager, section: section}
 }
 
 func NewMainManager(tournament MainManagerTournament) MainManager {
@@ -64,14 +64,14 @@ func (main Main) Out() *InterfaceOut {
 	return &InterfaceOut{Keyboard: keyboard, Text: NewView(main.section, betsTournamentsText).Text()}
 }
 
-func (mf MainFactory) Execute(action *Loading) Event {
-	if tournaments, fail := core.GetTournaments(); fail == nil {
-		return NewEvent(NewMain(action.Base, mf.manager, mf.section, tournaments), "")
-	}
-	return NewEvent(NewError(action.Base, action.Base, mf.section, mainErrorText), "")
-}
+func (lm LoadMain) Caption() string { return lm.section }
 
-func (mf MainFactory) Caption() string { return mf.section }
+func (lm LoadMain) Do(action *Loading) Event {
+	if tournaments, fail := core.GetTournaments(); fail == nil {
+		return NewEvent(NewMain(action.Base, lm.manager, lm.section, tournaments), "")
+	}
+	return NewEvent(NewError(action.Base, action.Base, lm.section, mainErrorText), "")
+}
 
 type (
 	Main struct {
@@ -82,7 +82,7 @@ type (
 		tournamentSlice []core.Tournament
 	}
 
-	MainFactory struct {
+	LoadMain struct {
 		manager MainManager
 		section string
 	}

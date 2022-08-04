@@ -37,8 +37,8 @@ func (round Round) Handle(update tgbotapi.Update) (Interface, bool, tgbotapi.Cha
 				match := round.matchSlice[index]
 				// !!! view := views.Match(match)
 				// !!! text := view.Caption(round.section, views.Round(round.core), views.Tournament(round.tournament))
-				factory := newLoadMatch(round.loader, round.manager, round.section, round.tournament, round.core, match)
-				loading := NewLoading(round.Base, round, factory, loadTournamentText)
+				executor := newLoadMatch(round.loader, round.manager, round.section, round.tournament, round.core, match)
+				loading := NewLoading(round.Base, round, executor, loadTournamentText)
 				text := views.Match(match).Players("", ":")
 				return loading, false, tgbotapi.NewCallback(update.CallbackQuery.ID, text)
 			} else {
@@ -67,7 +67,7 @@ func (rf RoundFactory) Caption() string {
 	return views.Round(rf.core).Caption(rf.section, views.Tournament(rf.tournament))
 }
 
-func (rf RoundFactory) Execute(action *Loading) Event {
+func (rf RoundFactory) Do(action *Loading) Event {
 	if matches, fail := core.GetMatches(rf.core, action.user); fail == nil {
 		return NewEvent(NewRound(action.Base, rf.caller, action, rf.manager, rf.section, rf.tournament, rf.core, matches), "")
 	}
