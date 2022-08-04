@@ -3,6 +3,7 @@ package main
 import (
 	"PJaK/core"
 	"PJaK/screens"
+	"fmt"
 	"github.com/go-telegram-bot-api/telegram-bot-api/v5"
 	"github.com/go-yaml/yaml"
 	_ "github.com/lib/pq"
@@ -21,6 +22,7 @@ func main() {
 		log.Panic(fail.Error())
 	}
 	fail = yaml.Unmarshal([]byte(bytes), &settings)
+	fmt.Println(1)
 	if fail != nil {
 		log.Panic(fail.Error())
 	}
@@ -58,6 +60,10 @@ func main() {
 					userId := int8(-1)
 					if "Whiteseaer" == userName {
 						userId = 1
+					} else if "petrperke" == userName {
+						userId = 0
+					} else if "El_Kardo" == userName {
+						userId = 2
 					}
 					chatChannel := make(chan screens.Event)
 					chat = &Chat{
