@@ -8,14 +8,15 @@ import (
 )
 
 const (
+	loadingButtonId        = "cancel"
+	loadingButtonText      = "🛑 Отмена"
 	loadingCharactersCount = 3
-	loadingButton          = "🛑 Отмена"
 	loadingTextSuffix      = ". Подождите, пожалуйста"
 )
 
-func NewLoading(b Base, i Interface, f ActionFactory, t string) *Loading {
-	runes, view := []rune(loadingCharacters[rand.Intn(loadingCharactersCount)]), NewView(f.Caption(), t)
-	return &Loading{Base: b, caller: i, factory: f, index: -1, runes: runes, view: view}
+func NewLoading(b Base, i Interface, e ActionExecutor, t string) *Loading {
+	runes, view := []rune(actionChars[rand.Intn(loadingCharactersCount)]), NewView(e.Caption(), t)
+	return &Loading{Base: b, caller: i, executor: e, index: -1, runes: runes, view: view}
 }
 
 func (loading Loading) Channel() chan Event {
@@ -30,15 +31,15 @@ func (loading Loading) close() {
 }
 
 func (loading *Loading) execute(event chan Event) {
-	//time.Sleep(time.Second)
+	//time.Sleep(time.Second * 9)
 	log.Println("screens.Loading.execute: sending event")
-	event <- loading.factory.Execute(loading)
+	event <- loading.executor.Do(loading)
 	log.Println("screens.Loading.execute: sent event")
 }
 
 func (loading Loading) Handle(update telegram.Update) (Interface, bool, telegram.Chattable) {
-	if update.CallbackQuery != nil && update.CallbackQuery.Data == cancelIdConst {
-		return loading.caller, false, telegram.NewCallback(update.CallbackQuery.ID, cancelTextConst)
+	if update.CallbackQuery != nil && update.CallbackQuery.Data == loadingButtonId {
+		return loading.caller, false, telegram.NewCallback(update.CallbackQuery.ID, loadingButtonText)
 	}
 	return loading.Base.Handle(update)
 }
@@ -57,9 +58,7 @@ func (loading Loading) Out() *InterfaceOut {
 	if loading.index >= 0 {
 		view.text = string(loading.runes[loading.index]) + " " + view.text
 	}
-	return &InterfaceOut{
-		Keyboard: [][]telegram.InlineKeyboardButton{{actionKeyboardButton}},
-		Text:     view.Text()}
+	return &InterfaceOut{Keyboard: [][]telegram.InlineKeyboardButton{{actionButton}}, Text: view.Text()}
 }
 
 func (loading *Loading) timer(event chan Event) {
@@ -104,11 +103,11 @@ func (loading *Loading) timer(event chan Event) {
 type (
 	Loading struct {
 		Base
-		caller  Interface
-		factory ActionFactory
-		index   int
-		runes   []rune
-		view    View
+		caller   Interface
+		executor ActionExecutor
+		index    int
+		runes    []rune
+		view     View
 	}
 
 	LoadingChannel chan Interface
@@ -118,16 +117,16 @@ type (
 		shuffle bool
 	}
 
-	ActionFactory interface {
+	ActionExecutor interface {
 		Caption() string
-		Execute(action *Loading) Event
+		Do(action *Loading) Event
 	}
 )
 
 var (
-	loadingCharacters = [loadingCharactersCount]string{
+	actionChars = [loadingCharactersCount]string{
 		"⌛⏳",
 		"⚫🔴\U0001F7E0\U0001F7E1\U0001F7E4\U0001F7E2🔵\U0001F7E3⚪",
 		"🕛🕧🕐🕜🕑🕝🕒🕞🕓🕟🕔🕠🕕🕡🕖🕢🕗🕣🕘🕤🕙🕥🕚🕦"}
-	actionKeyboardButton = telegram.NewInlineKeyboardButtonData(loadingButton, cancelIdConst)
+	actionButton = telegram.NewInlineKeyboardButtonData(loadingButtonText, loadingButtonId)
 )

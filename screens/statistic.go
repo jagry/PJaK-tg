@@ -45,13 +45,13 @@ func newStatisticTournament(base Base, caller, loader Interface,
 }
 
 func statisticMainManagerTournament(main Main, core core.Tournament) *Loading {
-	return NewLoading(main.Base, LoadMain(main.Base, main.manager, statisticCaption),
-		newLoadStatisticTournament(LoadMain(main.Base, main.manager, statisticCaption), core), loadTournamentText)
+	executor := loadMain(main.Base, main.manager, statisticCaption)
+	return NewLoading(main.Base, executor, newLoadStatisticTournament(executor, core), loadTournamentText)
 }
 
 func (loadStatisticBase) Caption() string { return statisticCaption }
 
-func (lsr loadStatisticRound) Execute(action *Loading) Event {
+func (lsr loadStatisticRound) Do(action *Loading) Event {
 	if matches, fail := core.GetMatches(lsr.core, action.user); fail == nil {
 		var wg sync.WaitGroup
 		statisticRoundBets := make([]statisticRoundBets, len(matches))
@@ -131,7 +131,7 @@ func (lsr loadStatisticRound) Execute(action *Loading) Event {
 	return NewEvent(NewError(action.Base, action, "!!!", "!!!"), "")
 }
 
-func (lst loadStatisticTournament) Execute(action *Loading) Event {
+func (lst loadStatisticTournament) Do(action *Loading) Event {
 	if rounds, fail := core.GetTournamentRounds(lst.core); fail == nil {
 		return NewEvent(newStatisticTournament(action.Base, lst.caller, action, lst.core, rounds), "")
 	}

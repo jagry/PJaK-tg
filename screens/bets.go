@@ -53,8 +53,8 @@ func betsButton(match core.Match) string {
 }
 
 func betsMainManagerTournament(main Main, tournament core.Tournament) *Loading {
-	return LoadTournament(main.Base, LoadMain(main.Base, main.manager, betsCaption),
-		betsMatchManager, main.section, tournament)
+	load := loadMain(main.Base, main.manager, betsCaption)
+	return LoadTournament(main.Base, load, betsMatchManager, main.section, tournament)
 }
 
 func betsModify(match core.Match) (bool, *byte, *byte) {
