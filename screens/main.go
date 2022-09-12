@@ -4,6 +4,7 @@ import (
 	"PJaK/core"
 	"PJaK/views"
 	"github.com/go-telegram-bot-api/telegram-bot-api/v5"
+	"log"
 	"strconv"
 	"strings"
 )
@@ -33,21 +34,28 @@ func NewMainManager(tournament MainManagerTournament) MainManager {
 	return MainManager{tournament: tournament}
 }
 
-func (main Main) Handle(update tgbotapi.Update) (Interface, bool, tgbotapi.Chattable) {
+func (main Main) Handle(id int, update tgbotapi.Update) (Interface, bool, tgbotapi.Chattable) {
 	if update.CallbackQuery != nil && strings.HasPrefix(update.CallbackQuery.Data, betsTournamentIdPrefix) {
-		id, fail := strconv.ParseUint(update.CallbackQuery.Data[len(betsTournamentIdPrefix):], 10, 16)
-		if fail != nil {
-			panic("screens.BetsMain.Handle-0:" + fail.Error())
+		if update.CallbackQuery.Message != nil && update.CallbackQuery.Message.MessageID == id {
+			callbackQuery := update.CallbackQuery
+			dataString := callbackQuery.Data[len(betsTournamentIdPrefix):]
+			dataInt, fail := strconv.ParseUint(dataString, 10, 16)
+			if fail == nil {
+				offset, ok := main.tournamentMap[core.TournamentId(dataInt)]
+				if ok {
+					tournament := main.tournamentSlice[offset]
+					text := views.Tournament(tournament).Caption(main.section)
+					callback := tgbotapi.NewCallback(callbackQuery.ID, text)
+					return main.manager.tournament(main, tournament), false, callback
+				} else {
+					log.Println("screens.Main.Handle-1")
+				}
+			} else {
+				log.Println("screens.Main.Handle-0:" + fail.Error())
+			}
 		}
-		offset, ok := main.tournamentMap[core.TournamentId(id)]
-		if !ok {
-			panic("screens.BetsMain.Handle-1")
-		}
-		tournament := main.tournamentSlice[offset]
-		text := views.Tournament(tournament).Caption(main.section)
-		return main.manager.tournament(main, tournament), false, tgbotapi.NewCallback(update.CallbackQuery.ID, text)
 	}
-	return main.Base.Handle(update)
+	return main.Base.Handle(id, update)
 }
 
 func (main Main) Out() *InterfaceOut {

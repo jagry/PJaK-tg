@@ -13,11 +13,12 @@ func NewError(base Base, caller Interface, caption, text string) Error {
 	return Error{Base: base, caller: caller, view: NewView(caption, text)}
 }
 
-func (error Error) Handle(update telegram.Update) (Interface, bool, telegram.Chattable) {
+func (error Error) Handle(id int, update telegram.Update) (Interface, bool, telegram.Chattable) {
 	if update.CallbackQuery != nil && update.CallbackQuery.Data == errorId {
+
 		return error.caller, false, telegram.NewCallback(update.CallbackQuery.ID, errorText)
 	}
-	return error.Base.Handle(update)
+	return error.Base.Handle(id, update)
 }
 
 func (error Error) Hook(argument Interface) Interface { return nil }

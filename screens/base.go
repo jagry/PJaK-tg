@@ -25,7 +25,7 @@ func NewBaseAction(section string) BaseAction {
 	return BaseAction{section: section}
 }
 
-//func (Base) Channel() chan Event { return nil }
+func (base Base) GetBase() Base { return base }
 
 func (Base) Close() {}
 
@@ -33,8 +33,12 @@ func (Base) Message() {}
 
 func (Base) Init() chan bool { return nil }
 
-func (base Base) Handle(update telegram.Update) (Interface, bool, telegram.Chattable) {
+func (base Base) Handle(id int, update telegram.Update) (Interface, bool, telegram.Chattable) {
 	if update.CallbackQuery != nil {
+		if update.CallbackQuery.Message.MessageID != id {
+			chat, msg := update.FromChat().ID, update.CallbackQuery.Message.MessageID
+			return nil, false, telegram.NewDeleteMessage(chat, msg)
+		}
 		if update.CallbackQuery.Data == baseCloseId {
 			return base, false, telegram.NewCallback(update.CallbackQuery.ID, baseCloseText)
 		}

@@ -4,6 +4,7 @@ import (
 	"PJaK/core"
 	"PJaK/views"
 	"github.com/go-telegram-bot-api/telegram-bot-api/v5"
+	"log"
 	"strconv"
 	"strings"
 )
@@ -36,17 +37,16 @@ func NewTournamentFactory(c Interface, m matchManager, s string, t core.Tourname
 	return TournamentFactory{BaseAction: NewBaseAction(s), caller: c, core: t, manager: m}
 }
 
-func (tournament Tournament) Handle(update tgbotapi.Update) (Interface, bool, tgbotapi.Chattable) {
+func (tournament Tournament) Handle(id int, update tgbotapi.Update) (Interface, bool, tgbotapi.Chattable) {
 	if update.CallbackQuery != nil {
 		if strings.HasPrefix(update.CallbackQuery.Data, betsTournamentIdPrefix) {
-			id, fail := strconv.ParseUint(update.CallbackQuery.Data[len(betsTournamentIdPrefix):], 36, 16)
+			data, fail := strconv.ParseUint(update.CallbackQuery.Data[len(betsTournamentIdPrefix):], 36, 16)
 			if fail != nil {
-				panic("screens.BetsTournament.Handle:" + fail.Error())
+				log.Println("screens.BetsTournament.Handle:" + fail.Error())
 			}
-			if round, ok := tournament.roundMap[core.RoundId(id)]; ok {
+			if round, ok := tournament.roundMap[core.RoundId(data)]; ok {
 				factory := NewRoundFactory(tournament.loader, tournament.manager,
 					tournament.section, tournament.core, round)
-				// !!! text := views.Round(round).Caption(tournament.section, views.Tournament(*tournament.core))
 				loading := NewLoading(tournament.Base, tournament, factory, betsLoadMatchesText)
 				return loading, false, tgbotapi.NewCallback(update.CallbackQuery.ID, round.Name)
 			} else {
@@ -54,7 +54,7 @@ func (tournament Tournament) Handle(update tgbotapi.Update) (Interface, bool, tg
 			}
 		}
 	}
-	return tournament.Back.Handle(update)
+	return tournament.Back.Handle(id, update)
 }
 
 func (tournament Tournament) Out() *InterfaceOut {

@@ -7,7 +7,6 @@ import (
 	"github.com/go-telegram-bot-api/telegram-bot-api/v5"
 	"github.com/go-yaml/yaml"
 	_ "github.com/lib/pq"
-	"log"
 	"math/rand"
 	"os"
 	"time"
@@ -19,21 +18,27 @@ func main() {
 	var settings Settings
 	bytes, fail := os.ReadFile("./.yml")
 	if fail != nil {
-		log.Panic(fail.Error())
+		fmt.Println(fail.Error())
+		os.Exit(1)
+		return
 	}
 	fail = yaml.Unmarshal([]byte(bytes), &settings)
-	fmt.Println(1)
 	if fail != nil {
-		log.Panic(fail.Error())
+		fmt.Println(fail.Error())
+		os.Exit(2)
+		return
 	}
-	log.Println(settings)
 	fail = core.Db(settings.Database.Type, settings.Database.Arguments)
 	if fail != nil {
-		log.Panic(fail.Error())
+		fmt.Println(fail.Error())
+		os.Exit(3)
+		return
 	}
 	BotAPI, fail = tgbotapi.NewBotAPI(settings.Telegram)
 	if fail != nil {
-		log.Panic(fail)
+		fmt.Println(fail.Error())
+		os.Exit(4)
+		return
 	}
 	rand.Seed(time.Now().UnixNano())
 	update := tgbotapi.NewUpdate(0)
@@ -44,9 +49,9 @@ func main() {
 		case message := <-channel:
 			messageChat := message.FromChat()
 			if messageChat != nil {
-				chat, ok := ChatMap[message.FromChat().ID]
+				chat, ok := ChatMap[messageChat.ID]
 				if ok {
-					if chat.Next != nil {
+					/*if chat.Next != nil {
 						chat.Next.Previous = chat.Previous
 					}
 					if chat.Previous != nil {
@@ -54,7 +59,7 @@ func main() {
 					} else {
 						FirstChat = chat.Next
 					}
-					chat.Time = time.Now()
+					chat.Time = time.Now()*/
 				} else {
 					userName := message.SentFrom().UserName
 					userId := int8(-1)
@@ -66,22 +71,19 @@ func main() {
 						userId = 2
 					}
 					chatChannel := make(chan screens.Event)
-					chat = &Chat{
-						id:         message.FromChat().ID,
-						Screen:     screens.NewBase(chatChannel, userId),
-						Time:       time.Now(),
-						updateChan: make(UpdateChan)}
-					ChatMap[message.FromChat().ID] = chat
+					screen := screens.NewBase(chatChannel, userId)
+					chat = &Chat{id: messageChat.ID, Screen: screen, Time: time.Now(), updateChan: make(UpdateChan)}
+					ChatMap[messageChat.ID] = chat
 					go chat.routine(chatChannel)
 				}
-				chat.Time = time.Now()
+				/*chat.Time = time.Now()*/
 				chat.updateChan <- message
-				if LastChat != nil {
+				/*if LastChat != nil {
 					LastChat.Next = chat
 				} else {
 					FirstChat = chat
 				}
-				LastChat, chat.Next, chat.Previous = chat, nil, LastChat
+				LastChat, chat.Next, chat.Previous = chat, nil, LastChat*/
 			}
 		}
 	}

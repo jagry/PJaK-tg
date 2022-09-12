@@ -64,8 +64,8 @@ func betsModify(match core.Match) (bool, *byte, *byte) {
 	return true, match.Team1.Bet(), match.Team2.Bet()
 }
 
-func betsSave(match core.Match, user int8) (byte, byte, error) {
-	return *match.Team1.Bet(), *match.Team2.Bet(), core.SaveBets(*match.Team1.Bet(), *match.Team2.Bet(), match.Id, user)
+func betsSave(match core.Match) (byte, byte, matchManagerSaveCallback) {
+	return *match.Team1.Bet(), *match.Team2.Bet(), core.SaveBets
 }
 
 func betsScreen(match core.Match) (string, [][]tgbotapi.InlineKeyboardButton) {

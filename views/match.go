@@ -57,7 +57,7 @@ func (match Match) Result(separator string) (result string) {
 
 func (match Match) Time() string {
 	time := core.Match(match).Time()
-	text := strconv.Itoa(time.Day()) + "." + string(time.Month()+'Ⅰ') + " "
+	text := strconv.Itoa(time.Day()) + "." + string(time.Month()+'Ⅰ'-1) + " "
 	temp := time.Hour()
 	if temp < 10 {
 		text += "0"

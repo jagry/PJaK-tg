@@ -2,26 +2,27 @@ package main
 
 import (
 	"errors"
-	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
+	"github.com/go-telegram-bot-api/telegram-bot-api/v5"
+	"log"
 )
 
 func (task UpdateTask) execute(chat *Chat) (result TaskChan) {
-	screen, new, chatTable := chat.Screen.Handle(task.update)
+	screen, reboot, chatTable := chat.Screen.Handle(chat.Message, task.update)
 	if chatTable != nil {
 		_, fail := BotAPI.Request(chatTable)
 		if fail != nil {
-			var error *tgbotapi.Error
-			if errors.As(fail, &error) {
-				panic("UpdateTask.execute-0: " + fail.Error())
+			var tgError *tgbotapi.Error
+			if errors.As(fail, &tgError) {
+				log.Println("UpdateTask.execute-0: " + fail.Error())
 			} else {
-				panic("UpdateTask.execute-1: " + fail.Error())
+				log.Println("UpdateTask.execute-1: " + fail.Error())
 			}
 		}
 	}
 	if screen != nil {
 		result = screen.Init()
 		chat.Screen.Close()
-		chat.out(screen, new)
+		chat.out(screen, reboot)
 	}
 	return
 }

@@ -5,9 +5,11 @@ import (
 	"PJaK/views"
 	"errors"
 	"github.com/go-telegram-bot-api/telegram-bot-api/v5"
+	"log"
 	"regexp"
 	"strconv"
 	"strings"
+	"time"
 )
 
 const (
@@ -23,14 +25,15 @@ func matchHandle(c tgbotapi.CallbackQuery, p, n string, s matchManagerTeam, t *c
 	idString := c.Data[len(p):]
 	idInt64, fail := strconv.ParseUint(idString, 10, 8)
 	if fail != nil {
-		panic("screens.BetsRound.Handle:" + fail.Error())
+		log.Println("screens.matchHandle:" + fail.Error())
+
 	}
 	s(t, byte(idInt64))
 	return tgbotapi.NewCallback(c.ID, views.MatchTeam(*t).Short(n)+" "+idString)
 }
 
-func newLoadMatch(c Interface, m matchManager, s string, t core.Tournament, r core.Round, cm core.Match) loadMatch {
-	return loadMatch{BaseAction: NewBaseAction(s), caller: c, core: cm, manager: m, round: r, tournament: t}
+func newLoadMatch(c Interface, m matchManager, s string, t core.Tournament, r core.Round, cm core.Match) LoadMatch {
+	return LoadMatch{BaseAction: NewBaseAction(s), caller: c, core: cm, manager: m, round: r, tournament: t}
 }
 
 func newMatch(b Base, c, l Interface, m matchManager, s string, t core.Tournament, r core.Round, cm core.Match) match {
@@ -52,11 +55,11 @@ func newSaveMatch(base Base, success, error Interface, manager matchManager, sec
 		manager: manager, round: round, success: success, tournament: tournament}
 }
 
-func (lm loadMatch) Caption() string {
+func (lm LoadMatch) Caption() string {
 	return views.Match(lm.core).Caption(lm.section, views.Round(lm.round), views.Tournament(lm.tournament))
 }
 
-func (lm loadMatch) Do(action *Loading) Event {
+func (lm LoadMatch) Do(action *Loading) Event {
 	if match, fail := core.GetMatch(lm.core.Id, action.user); fail == nil {
 		screen := newMatch(action.Base, lm.caller, action, lm.manager, lm.section, lm.tournament, lm.round, match)
 		return NewEvent(screen, "")
@@ -64,7 +67,7 @@ func (lm loadMatch) Do(action *Loading) Event {
 	return NewEvent(NewError(action.Base, action.Base, betsCaption, "!!!"), "")
 }
 
-func (match match) Handle(update tgbotapi.Update) (Interface, bool, tgbotapi.Chattable) {
+func (match match) Handle(id int, update tgbotapi.Update) (Interface, bool, tgbotapi.Chattable) {
 	if update.CallbackQuery != nil {
 		if strings.HasPrefix(update.CallbackQuery.Data, betsMatchTeam1IdPrefix) {
 			callback := matchHandle(*update.CallbackQuery, betsMatchTeam1IdPrefix,
@@ -112,7 +115,7 @@ func (match match) Handle(update tgbotapi.Update) (Interface, bool, tgbotapi.Cha
 		}
 		return NewError(match.Base, match, baseUserCaptionText, "!!!! X-X"), false, dmc
 	}
-	return match.Back.Handle(update)
+	return match.Back.Handle(id, update)
 }
 
 func (match match) Out() *InterfaceOut {
@@ -125,15 +128,18 @@ func (sm saveMatch) Caption() string {
 	return views.Match(sm.core).Caption(sm.section, views.Round(sm.round), views.Tournament(sm.tournament))
 }
 
+// Do Сохранение введенных данных
 func (sm saveMatch) Do(action *Loading) Event {
-	if goal1, goal2, fail := sm.manager.save(sm.core, action.user); fail == nil {
+	if goal1, goal2, callback := sm.manager.save(sm.core); callback != nil {
+		time.Sleep(time.Minute)
 		return NewEvent(sm.success, sm.Caption()+": "+views.Goals(&goal1, &goal2))
 	}
 	return NewEvent(NewError(sm.base, sm.error, sm.Caption(), "!!! Не удалось сохранить данные"), "")
 }
 
 type (
-	loadMatch struct {
+	// LoadMatch загрузка данных по матчу. Данные: прогноз или результат
+	LoadMatch struct {
 		BaseAction
 		caller     Interface
 		core       core.Match
@@ -165,7 +171,9 @@ type (
 
 	matchManagerModify func(core.Match) (bool, *byte, *byte)
 
-	matchManagerSave func(core.Match, int8) (byte, byte, error)
+	matchManagerSave func(core.Match) (byte, byte, matchManagerSaveCallback)
+
+	matchManagerSaveCallback func(byte, byte, core.MatchId, int8) error
 
 	matchManagerScreen func(core.Match) (string, [][]tgbotapi.InlineKeyboardButton)
 

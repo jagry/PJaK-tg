@@ -8,15 +8,15 @@ import (
 )
 
 const (
-	loadingButtonId        = "cancel"
-	loadingButtonText      = "🛑 Отмена"
-	loadingCharactersCount = 3
-	loadingTextSuffix      = ". Подождите, пожалуйста"
+	actionButtonId    = "action"
+	actionButtonText  = "🛑 Отмена"
+	actionCharsCount  = 3
+	loadingTextSuffix = ". Подождите, пожалуйста"
 )
 
 func NewLoading(b Base, i Interface, e ActionExecutor, t string) *Loading {
-	runes, view := []rune(actionChars[rand.Intn(loadingCharactersCount)]), NewView(e.Caption(), t)
-	return &Loading{Base: b, caller: i, executor: e, index: -1, runes: runes, view: view}
+	runes := []rune(actionChars[rand.Intn(actionCharsCount)])
+	return &Loading{Base: b, caller: i, executor: e, index: -1, runes: runes, view: NewView(e.Caption(), t)}
 }
 
 func (loading Loading) Channel() chan Event {
@@ -37,11 +37,13 @@ func (loading *Loading) execute(event chan Event) {
 	log.Println("screens.Loading.execute: sent event")
 }
 
-func (loading Loading) Handle(update telegram.Update) (Interface, bool, telegram.Chattable) {
-	if update.CallbackQuery != nil && update.CallbackQuery.Data == loadingButtonId {
-		return loading.caller, false, telegram.NewCallback(update.CallbackQuery.ID, loadingButtonText)
+func (loading Loading) Handle(id int, update telegram.Update) (Interface, bool, telegram.Chattable) {
+	if update.CallbackQuery != nil && update.CallbackQuery.Data == actionButtonId {
+		if update.CallbackQuery.Message != nil && update.CallbackQuery.Message.MessageID == id {
+			return loading.caller, false, telegram.NewCallback(update.CallbackQuery.ID, actionButtonText)
+		}
 	}
-	return loading.Base.Handle(update)
+	return loading.Base.Handle(id, update)
 }
 
 func (loading *Loading) Init() chan bool {
@@ -124,9 +126,9 @@ type (
 )
 
 var (
-	actionChars = [loadingCharactersCount]string{
+	actionChars = [actionCharsCount]string{
 		"⌛⏳",
 		"⚫🔴\U0001F7E0\U0001F7E1\U0001F7E4\U0001F7E2🔵\U0001F7E3⚪",
 		"🕛🕧🕐🕜🕑🕝🕒🕞🕓🕟🕔🕠🕕🕡🕖🕢🕗🕣🕘🕤🕙🕥🕚🕦"}
-	actionButton = telegram.NewInlineKeyboardButtonData(loadingButtonText, loadingButtonId)
+	actionButton = telegram.NewInlineKeyboardButtonData(actionButtonText, actionButtonId)
 )

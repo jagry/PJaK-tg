@@ -31,7 +31,7 @@ package screens
 //	//config.ReplyMarkup = startKeyboard
 //	//message, fail := bot.Send(config)
 //	//if fail != nil {
-//	//	panic("screens.Start.Out" + fail.Error())
+//	//	p_anic("screens.Start.Out" + fail.Error())
 //	//}
 //	//return message.MessageID
 //	return nil

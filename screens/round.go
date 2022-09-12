@@ -4,12 +4,14 @@ import (
 	"PJaK/core"
 	"PJaK/views"
 	"github.com/go-telegram-bot-api/telegram-bot-api/v5"
+	"log"
 	"strconv"
 	"strings"
 )
 
 const (
-	roundIdPrefix = "round."
+	roundIdPrefix  = "round."
+	roundLoadError = "Не удалось загрузить матчи"
 )
 
 func NewRound(base Base, caller, loader Interface, manager matchManager,
@@ -26,27 +28,26 @@ func NewRoundFactory(c Interface, m matchManager, s string, t core.Tournament, r
 	return RoundFactory{BaseAction: NewBaseAction(s), caller: c, manager: m, core: r, tournament: t}
 }
 
-func (round Round) Handle(update tgbotapi.Update) (Interface, bool, tgbotapi.Chattable) {
-	if update.CallbackQuery != nil {
-		if strings.HasPrefix(update.CallbackQuery.Data, roundIdPrefix) {
-			id, fail := strconv.ParseUint(update.CallbackQuery.Data[len(roundIdPrefix):], 36, 16)
+func (round Round) Handle(id int, update tgbotapi.Update) (Interface, bool, tgbotapi.Chattable) {
+	if update.CallbackQuery != nil && strings.HasPrefix(update.CallbackQuery.Data, roundIdPrefix) {
+		if update.CallbackQuery.Message != nil && update.CallbackQuery.Message.MessageID == id {
+			dataId, fail := strconv.ParseUint(update.CallbackQuery.Data[len(roundIdPrefix):], 36, 16)
 			if fail != nil {
-				panic("screens.BetsRound.Handle:" + fail.Error())
+				log.Println("screens.Round.Handle: " + fail.Error())
 			}
-			if index, ok := round.matchMap[core.MatchId(id)]; ok {
-				match := round.matchSlice[index]
-				// !!! view := views.Match(match)
-				// !!! text := view.Caption(round.section, views.Round(round.core), views.Tournament(round.tournament))
-				executor := newLoadMatch(round.loader, round.manager, round.section, round.tournament, round.core, match)
+			if index, ok := round.matchMap[core.MatchId(dataId)]; ok {
+				matchTodo := round.matchSlice[index]
+				executor := newLoadMatch(round.loader, round.manager,
+					round.section, round.tournament, round.core, matchTodo)
 				loading := NewLoading(round.Base, round, executor, loadTournamentText)
-				text := views.Match(match).Players("", ":")
+				text := views.Match(matchTodo).Players("", ":")
 				return loading, false, tgbotapi.NewCallback(update.CallbackQuery.ID, text)
 			} else {
 				return nil, false, tgbotapi.NewCallback(update.CallbackQuery.ID, "")
 			}
 		}
 	}
-	return round.Back.Handle(update)
+	return round.Back.Handle(id, update)
 }
 
 func (round Round) Out() *InterfaceOut {
@@ -71,7 +72,7 @@ func (rf RoundFactory) Do(action *Loading) Event {
 	if matches, fail := core.GetMatches(rf.core, action.user); fail == nil {
 		return NewEvent(NewRound(action.Base, rf.caller, action, rf.manager, rf.section, rf.tournament, rf.core, matches), "")
 	}
-	return NewEvent(NewError(action.Base, action.Base, "!!!", "!!!"), "")
+	return NewEvent(NewError(action.Base, action.Base, rf.Caption(), ""), "")
 }
 
 type (

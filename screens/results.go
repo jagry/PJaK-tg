@@ -44,9 +44,11 @@ func resultsModify(match core.Match) (bool, *byte, *byte) {
 	return true, match.Team1.Result(), match.Team2.Result()
 }
 
-func resultsSave(match core.Match, user int8) (byte, byte, error) {
-	result1, result2 := *match.Team1.Result(), *match.Team2.Result()
-	return result1, result2, core.SaveResult(result1, result2, match.Id, user)
+func resultsSave(match core.Match) (byte, byte, matchManagerSaveCallback) {
+	if result1, result2 := match.Team1.Result(), match.Team2.Result(); result1 != nil && result2 != nil {
+		return *result1, *result2, core.SaveResult
+	}
+	return 0, 0, nil
 }
 
 func resultsScreen(match core.Match) (string, [][]tgbotapi.InlineKeyboardButton) {

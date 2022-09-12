@@ -10,14 +10,12 @@ type (
 	}
 
 	Interface interface {
-		//Channel() chan Event
+		GetBase() Base
 		Close()
 		Init() chan bool
-		Handle(telegram.Update) (Interface, bool, telegram.Chattable)
+		Handle(int, telegram.Update) (Interface, bool, telegram.Chattable)
 		Hook(Interface) Interface
-		//Message() (Interface, string)
 		Out() *InterfaceOut
-		//User() int8
 	}
 
 	InterfaceOut struct {

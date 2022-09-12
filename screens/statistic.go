@@ -18,14 +18,6 @@ const (
 	statisticLength       = 23
 )
 
-func loadStatisticBets(wg *sync.WaitGroup, statistic []statisticRoundBets, match core.Match, user int8, index int) {
-	defer wg.Done()
-	if bets, fail := core.GetBets(match, user); fail == nil {
-		statistic[index].data = bets
-		statistic[index].Match = match
-	}
-}
-
 func newLoadStatisticBase(caller Interface) loadStatisticBase {
 	return loadStatisticBase{caller}
 }
@@ -36,6 +28,10 @@ func newLoadStatisticRound(caller Interface, core core.Round) loadStatisticRound
 
 func newLoadStatisticTournament(caller Interface, core core.Tournament) loadStatisticTournament {
 	return loadStatisticTournament{loadStatisticBase: newLoadStatisticBase(caller), core: core}
+}
+
+func newLoadStatisticTournamentAll(caller Interface, core core.Tournament) loadStatisticTournamentAll {
+	return loadStatisticTournamentAll{loadStatisticBase: newLoadStatisticBase(caller), core: core}
 }
 
 func newStatisticTournament(base Base, caller, loader Interface,
@@ -54,18 +50,26 @@ func (loadStatisticBase) Caption() string { return statisticCaption }
 func (lsr loadStatisticRound) Do(action *Loading) Event {
 	if matches, fail := core.GetMatches(lsr.core, action.user); fail == nil {
 		var wg sync.WaitGroup
-		statisticRoundBets := make([]statisticRoundBets, len(matches))
+		statisticRoundBets := make([]StatisticRoundBets, len(matches))
 		wg.Add(len(matches))
-		for index, match := range matches {
-			loadStatisticBets(&wg, statisticRoundBets, match, action.user, index)
+		for index, item := range matches {
+			go func(match core.Match, index int) {
+				bets, fail0 := core.GetBets(match, action.user)
+				if fail0 == nil {
+					statisticRoundBets[index].Data = bets
+					statisticRoundBets[index].Match = match
+				}
+				wg.Done()
+			}(item, index)
 		}
 		wg.Wait()
 		texts := make([]string, len(matches))
 		text := "<pre>" +
-			"       Прогнозы        ║  Очки\n" +
-			" Perke ┆ Jagry ┆Kardick║Prk┆Jgr┆Krd\n" +
-			"═══════╪═══════╪═══════╬═══╪═══╪═══\n"
-		pointsMap := map[int8]int{0: 0, 1: 0, 2: 0}
+			"    П р о г н о з ы    |  О ч к и\n" +
+			" Perke | Jagry |Kardick| P | J | K\n" +
+			"===================================\n"
+		pointsMap := map[int8]int16{0: 0, 1: 0, 2: 0}
+
 		for index, item := range statisticRoundBets {
 			teamStrings := ""
 			teamString1 := views.MatchTeam(item.Match.Team1).Full("---")
@@ -81,16 +85,16 @@ func (lsr loadStatisticRound) Do(action *Loading) Event {
 			teamRunes := []rune(teamStrings)
 			result := views.Match(item.Match).Result("")
 			text := teamStrings + strings.Repeat(" ", statisticLength-len(teamRunes)) +
-				"║" + strings.Repeat(" ", 10-len([]rune(result))) + result + "\n"
+				"|" + strings.Repeat(" ", 10-len([]rune(result))) + result + "\n"
 			betsText := make([]string, 3)
 			pointsText := make([]string, 3)
 			// TODO : отойти от четких ID. Например, чтоб раьотало с юзерами 1,2 и 3, а не про пеорядку
 			timeNow := time.Now()
 			for counter := int8(0); counter < 3; counter++ {
-				switch item.data[counter].Goals.(type) {
+				switch item.Data[counter].Goals.(type) {
 				case core.BetGoalsHidden:
 					if item.Time().Sub(timeNow) > 0 {
-						if item.data[counter].Goals.(core.BetGoalsHidden) {
+						if item.Data[counter].Goals.(core.BetGoalsHidden) {
 							betsText[counter] = "   +   "
 						} else {
 							betsText[counter] = "   -   "
@@ -99,7 +103,7 @@ func (lsr loadStatisticRound) Do(action *Loading) Event {
 						betsText[counter] = "  -:-  "
 					}
 				case core.BetGoalsReal:
-					betGoals := item.data[counter].Goals.(core.BetGoalsReal)
+					betGoals := item.Data[counter].Goals.(core.BetGoalsReal)
 					if betGoals.Bet1 == nil || betGoals.Bet2 == nil {
 						betsText[counter] = "  -:-  "
 					} else {
@@ -108,24 +112,26 @@ func (lsr loadStatisticRound) Do(action *Loading) Event {
 							bet1 + ":" + bet2 + strings.Repeat(" ", 3-len([]rune(bet2)))
 					}
 				}
-				if item.data[counter].Points == nil {
+				if item.Data[counter].Points == nil {
 					pointsText[counter] = "   "
 				} else {
-					pointsMap[counter] += int(*item.data[counter].Points)
-					points := strconv.Itoa(int(*item.data[counter].Points))
+					pointsMap[counter] += int16(*item.Data[counter].Points)
+					points := strconv.Itoa(int(*item.Data[counter].Points))
 					pointsText[counter] = strings.Repeat(" ", 3-len([]rune(points))) + points
 				}
 			}
-			texts[index] = text + strings.Join(betsText, "┆") + "║" + strings.Join(pointsText, "┆") + "\n"
+			texts[index] = text + strings.Join(betsText, "|") + "|" + strings.Join(pointsText, "|") + "\n"
 		}
-		text += strings.Join(texts, "───────┼───────┼───────╫───┼───┼───\n")
-		text += "═══════╧═══════╧═══════╬═══╪═══╪═══\n"
-		text += "                       ║"
+		text += strings.Join(texts, "-------+-------+-------+---+---+---\n")
+		text += "===================================\n"
+		text += "                       |"
+		pointsSlice := []string{}
 		for counter := int8(0); counter < 3; counter++ {
-			points := strconv.Itoa(pointsMap[counter])
-			text += strings.Repeat(" ", 3-len([]rune(points))) + points + "┆"
+			points := strconv.Itoa(int(pointsMap[counter]))
+			points = strings.Repeat(" ", 3-len([]rune(points))) + points
+			pointsSlice = append(pointsSlice, points)
 		}
-		text += "</pre>"
+		text += strings.Join(pointsSlice, "|") + "</pre>"
 		return NewEvent(lsr.caller, text)
 	}
 	return NewEvent(NewError(action.Base, action, "!!!", "!!!"), "")
@@ -138,22 +144,32 @@ func (lst loadStatisticTournament) Do(action *Loading) Event {
 	return NewEvent(NewError(action.Base, action, "!!!", "!!!"), "")
 }
 
-func (st statisticTournament) Handle(update tgbotapi.Update) (Interface, bool, tgbotapi.Chattable) {
-	if update.CallbackQuery != nil {
-		if strings.HasPrefix(update.CallbackQuery.Data, betsTournamentIdPrefix) {
-			id, fail := strconv.ParseUint(update.CallbackQuery.Data[len(betsTournamentIdPrefix):], 36, 16)
+func (lst loadStatisticTournamentAll) Do(action *Loading) Event {
+	if rounds, fail := core.GetTournamentRounds(lst.core); fail == nil {
+		return NewEvent(newStatisticTournament(action.Base, lst.caller, action, lst.core, rounds), "")
+	}
+	return NewEvent(NewError(action.Base, action, "!!!", "!!!"), "")
+}
+
+func (st statisticTournament) Handle(id int, update tgbotapi.Update) (Interface, bool, tgbotapi.Chattable) {
+	if cq := update.CallbackQuery; cq != nil && cq.Message != nil && cq.Message.MessageID == id {
+		if cq.Data == betsTournamentIdPrefix+"all" {
+			action := NewLoading(st.Base, st.loader, newLoadStatisticTournamentAll(st.loader, st.core), "!!!")
+			return action, false, tgbotapi.NewCallback(cq.ID, "Общая")
+		} else if strings.HasPrefix(cq.Data, betsTournamentIdPrefix) {
+			dataId, fail := strconv.ParseUint(cq.Data[len(betsTournamentIdPrefix):], 36, 16)
 			if fail != nil {
 				panic("screens.BetsTournament.Handle:" + fail.Error())
 			}
-			if round, ok := st.roundMap[core.RoundId(id)]; ok {
+			if round, ok := st.roundMap[core.RoundId(dataId)]; ok {
 				action := NewLoading(st.Base, st.loader, newLoadStatisticRound(st.loader, round), "!!!")
-				return action, false, tgbotapi.NewCallback(update.CallbackQuery.ID, round.Name)
+				return action, false, tgbotapi.NewCallback(cq.ID, round.Name)
 			} else {
-				return nil, false, tgbotapi.NewCallback(update.CallbackQuery.ID, "")
+				return nil, false, tgbotapi.NewCallback(cq.ID, "")
 			}
 		}
 	}
-	return st.Back.Handle(update)
+	return st.Back.Handle(id, update)
 }
 
 func (st statisticTournament) Out() *InterfaceOut {
@@ -161,7 +177,7 @@ func (st statisticTournament) Out() *InterfaceOut {
 		text := views.Tournament(st.core).Caption(statisticCaption)
 		return &InterfaceOut{Keyboard: backKeyboard, Text: NewView(text, betsTournamentEmptyText).Text()}
 	}
-	keyboard := [][]tgbotapi.InlineKeyboardButton{{tgbotapi.NewInlineKeyboardButtonData(statisticAllText, "ddddd")}}
+	keyboard := [][]tgbotapi.InlineKeyboardButton{{tgbotapi.NewInlineKeyboardButtonData(statisticAllText, betsTournamentIdPrefix+"all")}}
 	rounds := core.GetRounds(st.roundSlice)
 	for counter := 0; counter < len(rounds); counter = counter + betsRowCount {
 		row := make([]tgbotapi.InlineKeyboardButton, 0)
@@ -196,13 +212,18 @@ type (
 		core core.Tournament
 	}
 
+	loadStatisticTournamentAll struct {
+		loadStatisticBase
+		core core.Tournament
+	}
+
 	loadStatisticBase struct {
 		caller Interface
 	}
 
-	statisticRoundBets struct {
+	StatisticRoundBets struct {
 		core.Match
-		data map[int8]core.Bets
+		Data map[int8]core.Bets
 	}
 
 	statisticTournament struct {

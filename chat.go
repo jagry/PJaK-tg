@@ -3,6 +3,7 @@ package main
 import (
 	"PJaK/screens"
 	"github.com/go-telegram-bot-api/telegram-bot-api/v5"
+	"log"
 	"sync"
 	"time"
 )
@@ -19,7 +20,7 @@ func (chat *Chat) out(screen screens.Interface, new bool) {
 	if new {
 		if chat.Message != 0 {
 			if _, fail := BotAPI.Request(tgbotapi.NewDeleteMessage(chat.id, chat.Message)); fail != nil {
-				panic("Chat.out-0: " + fail.Error())
+				log.Println("Chat.out-0: " + fail.Error())
 			}
 			chat.Message = 0
 		}
@@ -31,7 +32,7 @@ func (chat *Chat) out(screen screens.Interface, new bool) {
 			}
 			message, fail := BotAPI.Send(config)
 			if fail != nil {
-				panic("Chat.out-0: " + fail.Error())
+				log.Println("Chat.out-1: " + fail.Error())
 			}
 			chat.Message = message.MessageID
 		}
@@ -45,14 +46,14 @@ func (chat *Chat) out(screen screens.Interface, new bool) {
 				}
 				message, fail := BotAPI.Send(config)
 				if fail != nil {
-					panic("Chat.out-0: " + fail.Error())
+					log.Println("Chat.out-2: " + fail.Error())
 				}
 				chat.Message = message.MessageID
 			}
 		} else {
 			if out == nil {
 				if _, fail := BotAPI.Request(tgbotapi.NewDeleteMessage(chat.id, chat.Message)); fail != nil {
-					panic("Chat.out-1: " + fail.Error())
+					log.Println("Chat.out-3: " + fail.Error())
 				}
 				chat.Message = 0
 			} else {
@@ -64,8 +65,7 @@ func (chat *Chat) out(screen screens.Interface, new bool) {
 				config.ParseMode = "html"
 				_, fail := BotAPI.Request(config)
 				if fail != nil {
-					//fail = errors.Unwrap(fail)
-					panic("Chat.out-2: " + fail.Error())
+					log.Println("Chat.out-4: " + fail.Error())
 				}
 			}
 		}
@@ -74,14 +74,6 @@ func (chat *Chat) out(screen screens.Interface, new bool) {
 
 func (chat *Chat) routine(channel chan screens.Event) {
 	for {
-		//if channel := chat.Screen.Channel(); channel == nil {
-		//	update := <-chat.updateChan
-		//	if len(chat.taskSlice) == 0 {
-		//		chat.taskChan = UpdateTask{update}.execute(chat)
-		//	} else {
-		//		chat.taskSlice = append(chat.taskSlice, UpdateTask{update})
-		//	}
-		//} else {
 		select {
 		case update := <-chat.updateChan:
 			if len(chat.taskSlice) == 0 {
@@ -102,8 +94,10 @@ func (chat *Chat) routine(channel chan screens.Event) {
 				chat.Message = 0
 			}
 			chat.out(event.Screen, false)
+		case <-time.After(time.Minute):
+			chat.Screen.Close()
+			chat.out(chat.Screen.GetBase(), false)
 		}
-		//		}
 	}
 }
 
